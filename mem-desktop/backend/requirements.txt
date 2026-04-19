@@ -1,0 +1,14 @@
+Django>=4.2
+djangorestframework
+django-cors-headers
+gitpython
+watchdog
+PyPDF2
+pdfplumber
+python-docx
+markdown
+beautifulsoup4
+html2text
+requests
+Pillow               # for image handling later
+pytesseract          # optional OCR (P1)

@@ -1,62 +1,50 @@
 'use client';
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import axios from 'axios';
-import Image from 'next/image';
 
 export default function Home() {
-  const [backendStatus, setBackendStatus] = useState('Checking...');
+  const [file, setFile] = useState<File | null>(null);
+  const [url, setUrl] = useState('');
+  const [preview, setPreview] = useState('');
+  const [loading, setLoading] = useState(false);
 
-  useEffect(() => {
-    axios.get('http://localhost:8000/api/health')
-      .then(res => setBackendStatus(res.data.message))
-      .catch(err => setBackendStatus('Backend not reachable'));
-  }, []);
+  const handleIngest = async () => {
+    setLoading(true);
+    const formData = new FormData();
+    if (file) formData.append('file', file);
+    else if (url) formData.append('url', url);
+    else return;
+
+    try {
+      const res = await axios.post('http://localhost:8000/api/ingest', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' }
+      });
+      setPreview(res.data.preview);
+    } catch (err) {
+      console.error(err);
+      setPreview('Error processing file');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
     <main className="p-8">
       <h1 className="text-2xl font-bold">Mem</h1>
-      <p className="mt-2">Backend status: {backendStatus}</p>
-      <p>
-        <a
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          className="font-medium text-zinc-950 dark:text-zinc-50"
-        >
-          Templates
-        </a>
-        or the
-        <a
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          className="font-medium text-zinc-950 dark:text-zinc-50"
-        >
-          Learning
-        </a>
-        center.
-      </p>
-      <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-        <a
-          className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-          href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            className="dark:invert"
-            src="/vercel.svg"
-            alt="Vercel logomark"
-            width={16}
-            height={16}
-          />
-          Deploy Now
-        </a>
-        <a
-          className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-          href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          Documentation
-        </a>
+      <div className="mt-4">
+        <input type="file" accept=".pdf,.docx,.md,.txt,.html" onChange={(e) => setFile(e.target.files?.[0] || null)} />
+        <p className="my-2">or</p>
+        <input type="text" placeholder="Enter URL" className="border p-2 w-64" value={url} onChange={(e) => setUrl(e.target.value)} />
+        <button onClick={handleIngest} disabled={loading} className="ml-2 bg-blue-500 text-white p-2 rounded">
+          {loading ? 'Processing...' : 'Ingest'}
+        </button>
       </div>
+      {preview && (
+        <div className="mt-4 p-4 border rounded">
+          <h3 className="font-bold">Preview (first 500 chars):</h3>
+          <pre className="whitespace-pre-wrap text-sm">{preview}</pre>
+        </div>
+      )}
     </main>
   );
 }
