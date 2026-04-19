@@ -12,3 +12,5 @@ html2text
 requests
 Pillow               # for image handling later
 pytesseract          # optional OCR (P1)
+groq
+python-dotenv

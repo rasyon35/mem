@@ -1,0 +1,308 @@
+import json
+import subprocess
+from pathlib import Path
+from datetime import datetime
+from django.conf import settings
+from .extractors import TextExtractor
+from .groq_client import groq_client
+from .wiki_context import wiki_context
+from .models import Source, Contradiction, CriticalPage
+
+
+class IngestProcessor:
+    """Orchestrates the full ingest pipeline: extract → LLM → stage → apply → git commit"""
+
+    def __init__(self):
+        self.workspace_root = Path(settings.BASE_DIR).parent / "workspace"
+        self.raw_dir = self.workspace_root / "raw"
+        self.wiki_dir = self.workspace_root / "wiki"
+        self.wiki_dir.mkdir(parents=True, exist_ok=True)
+        # Ensure wiki is a git repo so commits don't fail
+        self._ensure_git_repo()
+
+    # ------------------------------------------------------------------
+    # Public API
+    # ------------------------------------------------------------------
+
+    def process_file(self, file_path, auto_approve=False):
+        """
+        Full pipeline for a single file.
+
+        Returns:
+            dict with: status, proposed_changes, preview, needs_approval
+                       OR status='applied' with applied change list.
+        """
+        file_path = Path(file_path)
+
+        # 1. Extract text
+        try:
+            text, file_type = TextExtractor.extract(file_path)
+        except Exception as exc:
+            return {"error": f"Extraction failed: {exc}"}
+
+        if not text or len(text.strip()) < 50:
+            return {
+                "error": "Could not extract enough text from file",
+                "preview": text[:200] if text else "",
+            }
+
+        # 2. Existing wiki context (keyword search using filename stem)
+        query = file_path.stem.replace("_", " ")
+        existing_context = wiki_context.search_pages(query, max_pages=8)
+
+        # 3. Call Groq LLM
+        llm_result = groq_client.generate_wiki_updates(
+            text=text,
+            source_name=file_path.name,
+            existing_wiki_context=existing_context,
+        )
+
+        if "error" in llm_result and not llm_result.get("new_pages"):
+            return {"error": llm_result["error"]}
+
+        # 4. Save Source metadata
+        source_obj, _ = Source.objects.get_or_create(
+            name=file_path.name,
+            defaults={
+                "source_type": "file",  # URL sources are also saved as files in raw/
+                "path_or_url": str(file_path),
+                "summary": llm_result.get("summary", ""),
+            },
+        )
+
+        # 5. Detect if any critical pages are being updated
+        critical = self._get_critical_pages()
+        touches_critical = any(
+            p["title"] in critical for p in llm_result.get("updated_pages", [])
+        )
+
+        # 6. Prepare staged changes with original content for diffing
+        updated_pages = []
+        for p in llm_result.get("updated_pages", []):
+            title = p["title"]
+            slug = title.replace(" ", "_")
+            wiki_path = self.wiki_dir / f"{slug}.md"
+            original = ""
+            if wiki_path.exists():
+                original = wiki_path.read_text(encoding="utf-8")
+            updated_pages.append({**p, "original_content": original})
+
+        staged = {
+            "new_pages": llm_result.get("new_pages", []),
+            "updated_pages": updated_pages,
+            "contradictions": llm_result.get("contradictions", []),
+            "summary": llm_result.get("summary", ""),
+            "source": file_path.name,
+            "source_id": source_obj.id,
+            "timestamp": datetime.now().isoformat(),
+        }
+
+        # 7. Auto-apply if requested and no critical pages touched
+        if auto_approve and not touches_critical:
+            return self.apply_changes(staged)
+
+        return {
+            "status": "staged",
+            "needs_approval": touches_critical,
+            "proposed_changes": staged,
+            "preview": {
+                "summary": staged["summary"],
+                "new_pages": [p["title"] for p in staged["new_pages"]],
+                "updated_pages": [p["title"] for p in staged["updated_pages"]],
+                "contradictions": len(staged["contradictions"]),
+            },
+        }
+
+    def apply_changes(self, staged_changes):
+        """Write staged changes to the wiki directory and commit to git."""
+        changes_made = []
+
+        # --- Create new pages ---
+        for page in staged_changes.get("new_pages", []):
+            title = page["title"]
+            slug = title.replace(" ", "_")
+            file_path = self.wiki_dir / f"{slug}.md"
+
+            frontmatter = (
+                f"---\n"
+                f"title: {title}\n"
+                f"created: {datetime.now().isoformat()}\n"
+                f"sources: [{staged_changes.get('source', 'unknown')}]\n"
+                f"type: {page.get('category', 'concept')}\n"
+                f"---\n\n"
+            )
+            file_path.write_text(frontmatter + page["content"], encoding="utf-8")
+            changes_made.append(f"Created: {title}")
+
+        # --- Update existing pages ---
+        for page in staged_changes.get("updated_pages", []):
+            title = page["title"]
+            slug = title.replace(" ", "_")
+            file_path = self.wiki_dir / f"{slug}.md"
+
+            # Preserve existing frontmatter
+            if file_path.exists():
+                existing = file_path.read_text(encoding="utf-8")
+                if existing.startswith("---"):
+                    parts = existing.split("---", 2)
+                    if len(parts) >= 3:
+                        new_content = f"---{parts[1]}---\n\n{page['content']}"
+                        file_path.write_text(new_content, encoding="utf-8")
+                        changes_made.append(f"Updated: {title}")
+                        continue
+
+            # No frontmatter or new file
+            file_path.write_text(page["content"], encoding="utf-8")
+            changes_made.append(f"Updated: {title}")
+
+        # --- Rebuild index + append to log ---
+        self._rebuild_index()
+        changes_made.append("Rebuilt: index.md")
+
+        self._append_to_log(staged_changes)
+        changes_made.append("Logged: log.md")
+
+        # --- Git commit ---
+        self._git_commit(f"ingest: {staged_changes.get('source', 'unknown source')}")
+
+        # --- Save contradictions to DB ---
+        self._store_contradictions(staged_changes)
+
+        return {
+            "status": "applied",
+            "changes": changes_made,
+            "contradictions": staged_changes.get("contradictions", []),
+            "summary": staged_changes.get("summary", ""),
+        }
+
+    # ------------------------------------------------------------------
+    # Wiki management helpers
+    # ------------------------------------------------------------------
+
+    def _get_critical_pages(self):
+        """Load list of page titles that require explicit approval before updating"""
+        config_file = self.wiki_dir / "_config" / "critical_pages.txt"
+        if config_file.exists():
+            try:
+                return [
+                    line.strip()
+                    for line in config_file.read_text().splitlines()
+                    if line.strip()
+                ]
+            except Exception:
+                pass
+        return []
+
+    def _rebuild_index(self):
+        """Regenerate index.md from all wiki pages"""
+        index = "# Wiki Index\n\n"
+        cats: dict[str, list[str]] = {
+            "entity": [],
+            "concept": [],
+            "summary": [],
+            "source": [],
+        }
+
+        for md_file in sorted(self.wiki_dir.glob("*.md")):
+            if md_file.name in ("index.md", "log.md"):
+                continue
+
+            content = md_file.read_text(encoding="utf-8")
+            page_type = "concept"
+            for t in ("entity", "summary", "source", "concept"):
+                if f"type: {t}" in content:
+                    page_type = t
+                    break
+
+            # Pull first meaningful heading as description
+            description = ""
+            for line in content.splitlines():
+                if line.startswith("# ") and len(line) > 2:
+                    description = line[2:].strip()[:100]
+                    break
+                if len(line) > 10 and not line.startswith("---") and not line.startswith("#"):
+                    description = line.strip()[:100]
+                    break
+
+            cats.setdefault(page_type, []).append(
+                f"- [[{md_file.stem}]]: {description}"
+            )
+
+        for cat, pages in cats.items():
+            if pages:
+                index += f"## {cat.upper()}S\n\n" + "\n".join(pages) + "\n\n"
+
+        (self.wiki_dir / "index.md").write_text(index, encoding="utf-8")
+
+    def _append_to_log(self, staged_changes):
+        """Prepend an entry to log.md (newest first)"""
+        log_file = self.wiki_dir / "log.md"
+        ts = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        entry = (
+            f"\n## [{ts}] ingest | {staged_changes.get('source', 'unknown')}\n"
+            f"- Summary: {staged_changes.get('summary', '')[:300]}\n"
+            f"- New pages: {len(staged_changes.get('new_pages', []))}\n"
+            f"- Updated pages: {len(staged_changes.get('updated_pages', []))}\n"
+            f"- Contradictions: {len(staged_changes.get('contradictions', []))}\n"
+        )
+
+        if log_file.exists():
+            current = log_file.read_text(encoding="utf-8")
+            log_file.write_text(entry + current, encoding="utf-8")
+        else:
+            log_file.write_text(f"# Mem Wiki Log\n{entry}", encoding="utf-8")
+
+    def _ensure_git_repo(self):
+        """Initialize a git repo in wiki_dir if one doesn't exist"""
+        git_dir = self.wiki_dir / ".git"
+        if not git_dir.exists():
+            subprocess.run(["git", "init"], cwd=self.wiki_dir, capture_output=True)
+            subprocess.run(
+                ["git", "config", "user.email", "mem@local"],
+                cwd=self.wiki_dir,
+                capture_output=True,
+            )
+            subprocess.run(
+                ["git", "config", "user.name", "Mem Bot"],
+                cwd=self.wiki_dir,
+                capture_output=True,
+            )
+
+    def _git_commit(self, message):
+        """Stage all changes and commit"""
+        try:
+            subprocess.run(["git", "add", "."], cwd=self.wiki_dir, capture_output=True)
+            result = subprocess.run(
+                ["git", "commit", "-m", message],
+                cwd=self.wiki_dir,
+                capture_output=True,
+                text=True,
+            )
+            if result.returncode != 0:
+                print(f"Git commit note: {result.stderr.strip()}")
+        except Exception as exc:
+            print(f"Git commit failed: {exc}")
+
+    def _store_contradictions(self, staged_changes):
+        """Store contradictions in SQLite for later querying"""
+        source_id = staged_changes.get("source_id")
+        if not source_id:
+            return
+
+        try:
+            source = Source.objects.get(id=source_id)
+            for contra in staged_changes.get("contradictions", []):
+                Contradiction.objects.create(
+                    source=source,
+                    existing_page=contra.get("existing_page", "unknown"),
+                    existing_claim=contra.get("existing_claim", ""),
+                    new_claim=contra.get("new_claim", ""),
+                    confidence=contra.get("confidence", "low"),
+                    status="pending",
+                )
+        except Exception as e:
+            print(f"Error storing contradictions: {e}")
+
+
+# Singleton
+ingest_processor = IngestProcessor()

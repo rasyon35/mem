@@ -12,3 +12,14 @@ venv/
 *.log
 *.pyc
 __pycache__/
+
+# Environment / secrets — NEVER commit
+backend/.env
+.env
+
+# Uploaded raw files (can be large)
+workspace/raw/*
+workspace/wiki/.git/
+
+# Next.js build output
+frontend/.next/
