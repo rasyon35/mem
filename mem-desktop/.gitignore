@@ -1,0 +1,14 @@
+# Node modules
+node_modules/
+
+# Python virtual environment
+venv/
+
+# Django migration files
+**/migrations/*
+!**/migrations/__init__.py
+
+# Other unnecessary files
+*.log
+*.pyc
+__pycache__/

@@ -1,0 +1,15 @@
+{
+  "name": "mem-desktop",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev:backend": "cd backend && source ../venv/bin/activate && python manage.py runserver",
+    "dev:frontend": "cd frontend && npm run dev",
+    "dev:electron": "cd electron && npm start",
+    "dev": "concurrently \"npm run dev:backend\" \"npm run dev:frontend\" \"wait-on http://localhost:3000 http://localhost:8000 && npm run dev:electron\""
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.2",
+    "wait-on": "^7.2.0"
+  }
+}
