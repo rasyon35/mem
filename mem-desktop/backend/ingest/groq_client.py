@@ -14,7 +14,7 @@ class GroqClient:
     # Ingestion
     # ------------------------------------------------------------------
 
-    def generate_wiki_updates(self, text, source_name, existing_wiki_context=""):
+    def generate_wiki_updates(self, text, source_name, existing_wiki_context="", existing_categories=""):
         """
         Send extracted text to Groq in chunks and get structured wiki updates.
         """
@@ -42,7 +42,8 @@ class GroqClient:
                 chunk, 
                 f"{source_name} (Part {i+1})", 
                 existing_wiki_context,
-                staged_context
+                staged_context,
+                existing_categories
             )
 
             try:
@@ -129,14 +130,15 @@ You must return ONLY valid JSON, no other text. The JSON must follow this struct
     {
       "title": "Page title (use Title Case with spaces)",
       "content": "Full markdown content of the new page. Use headings, lists, links to other pages as [[Page Name]].",
-      "category": "entity|concept|summary|source"
+      "category": "Semantic domain/subject area (e.g. Operating Systems, Finance, AGI & Cognitive)"
     }
   ],
   "updated_pages": [
     {
       "title": "Existing page title to update",
       "content": "The COMPLETE new content for this page (replace entirely, not a diff)",
-      "changes_summary": "Brief description of what changed"
+      "changes_summary": "Brief description of what changed",
+      "category": "Semantic domain/subject area"
     }
   ],
   "contradictions": [
@@ -159,7 +161,7 @@ Rules:
 - Be conservative: don't create pages for trivial or one-off mentions.
 """
 
-    def _build_ingest_prompt(self, text, source_name, existing_wiki_context, staged_context=""):
+    def _build_ingest_prompt(self, text, source_name, existing_wiki_context, staged_context="", existing_categories=""):
         context_section = (
             existing_wiki_context
             if existing_wiki_context
@@ -179,9 +181,13 @@ Source content:
 
 Existing wiki context (live pages):
 {context_section}
+
+Existing categories in the system:
+{existing_categories if existing_categories else 'None yet.'}
 {staged_section}
 
 Based ONLY on the source segment provided, generate wiki updates. 
+Assign a semantic `category` to every new or updated page. Try to reuse one of the 'Existing categories' if it's a perfect match, otherwise invent a concise new high-level category (e.g. 'Software Engineering', 'Neuroscience', 'Finance').
 If information is a continuation of a page already staged, include it in the 'updated_pages' or 'new_pages' with the same title to refine it.
 """
 

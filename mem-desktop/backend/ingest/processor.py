@@ -24,14 +24,16 @@ class IngestProcessor:
     # Public API
     # ------------------------------------------------------------------
 
-    def process_file(self, file_path, auto_approve=False):
+    def process_file(self, file_path, auto_approve=False, user_email=None):
         """
         Full pipeline for a single file.
-
-        Returns:
-            dict with: status, proposed_changes, preview, needs_approval
-                       OR status='applied' with applied change list.
         """
+        email = user_email or self._get_user_email()
+        role = self._get_user_role(email)
+
+        if role == "viewer":
+            return {"error": "Viewers cannot ingest new sources"}
+
         file_path = Path(file_path)
 
         # 1. Extract text
@@ -49,12 +51,24 @@ class IngestProcessor:
         # 2. Existing wiki context (keyword search using filename stem)
         query = file_path.stem.replace("_", " ")
         existing_context = wiki_context.search_pages(query, max_pages=8)
+        
+        # 2.5 Extract all unique existing categories
+        existing_categories = set(["Miscellaneous", "concept", "entity"])
+        for md_file in self.wiki_dir.glob("*.md"):
+            if md_file.name in ("index.md", "log.md"): continue
+            content = md_file.read_text(encoding="utf-8")
+            import re
+            cat_match = re.search(r"^category:\s*(.+)$", content, re.MULTILINE)
+            if cat_match:
+                existing_categories.add(cat_match.group(1).strip().strip("'").strip('"'))
+        existing_categories_str = ", ".join(sorted(list(existing_categories)))
 
         # 3. Call Groq LLM
         llm_result = groq_client.generate_wiki_updates(
             text=text,
             source_name=file_path.name,
             existing_wiki_context=existing_context,
+            existing_categories=existing_categories_str,
         )
 
         if "error" in llm_result and not llm_result.get("new_pages"):
@@ -113,8 +127,16 @@ class IngestProcessor:
             },
         }
 
-    def apply_changes(self, staged_changes):
+    def apply_changes(self, staged_changes, user_email=None):
         """Write staged changes to the wiki directory and commit to git."""
+        email = user_email or self._get_user_email()
+        role = self._get_user_role(email)
+
+        if role not in ("admin", "editor"):
+            # Contributors might be allowed if approved by an admin
+            # For now, let's strictly require admin/editor to apply
+            return {"error": f"Role '{role}' is not authorized to apply changes"}
+
         changes_made = []
 
         # --- Create new pages ---
@@ -123,12 +145,14 @@ class IngestProcessor:
             slug = title.replace(" ", "_")
             file_path = self.wiki_dir / f"{slug}.md"
 
+            page_category = page.get("category", "Miscellaneous")
             frontmatter = (
                 f"---\n"
                 f"title: {title}\n"
                 f"created: {datetime.now().isoformat()}\n"
                 f"sources: [{staged_changes.get('source', 'unknown')}]\n"
-                f"type: {page.get('category', 'concept')}\n"
+                f"type: concept\n"
+                f"category: {page_category}\n"
                 f"---\n\n"
             )
             file_path.write_text(frontmatter + page["content"], encoding="utf-8")
@@ -139,6 +163,7 @@ class IngestProcessor:
             title = page["title"]
             slug = title.replace(" ", "_")
             file_path = self.wiki_dir / f"{slug}.md"
+            page_category = page.get("category", "")
 
             # Preserve existing frontmatter
             if file_path.exists():
@@ -146,7 +171,15 @@ class IngestProcessor:
                 if existing.startswith("---"):
                     parts = existing.split("---", 2)
                     if len(parts) >= 3:
-                        new_content = f"---{parts[1]}---\n\n{page['content']}"
+                        fm_block = parts[1]
+                        # Inject or update category in existing frontmatter
+                        if page_category:
+                            import re as _re
+                            if _re.search(r"^category:", fm_block, _re.MULTILINE):
+                                fm_block = _re.sub(r"^category:.*$", f"category: {page_category}", fm_block, flags=_re.MULTILINE)
+                            else:
+                                fm_block = fm_block.rstrip("\n") + f"\ncategory: {page_category}\n"
+                        new_content = f"---{fm_block}---\n\n{page['content']}"
                         file_path.write_text(new_content, encoding="utf-8")
                         changes_made.append(f"Updated: {title}")
                         continue
@@ -178,6 +211,38 @@ class IngestProcessor:
     # ------------------------------------------------------------------
     # Wiki management helpers
     # ------------------------------------------------------------------
+
+    def _get_user_email(self):
+        """Get the current user's email from git config"""
+        try:
+            res = subprocess.run(
+                ["git", "config", "user.email"],
+                cwd=self.wiki_dir,
+                capture_output=True,
+                text=True,
+            )
+            return res.stdout.strip() or "local@user"
+        except Exception:
+            return "local@user"
+
+    def _get_user_role(self, email):
+        """Determine role from _config/team.json"""
+        team_file = self.wiki_dir / "_config" / "team.json"
+        
+        # If no team file exists, first user is Admin
+        if not team_file.exists():
+            return "admin"
+            
+        try:
+            team = json.loads(team_file.read_text())
+            if email in team.get("admins", []): return "admin"
+            if email in team.get("editors", []): return "editor"
+            if email in team.get("contributors", []): return "contributor"
+            if email in team.get("viewers", []): return "viewer"
+        except Exception:
+            pass
+            
+        return "viewer" # Default to safest
 
     def _get_critical_pages(self):
         """Load list of page titles that require explicit approval before updating"""

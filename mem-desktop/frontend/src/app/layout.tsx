@@ -1,9 +1,10 @@
-import type { Metadata } from "next";
-import "./globals.css";
+import type { Metadata } from 'next';
+import './globals.css';
+import { WikiProvider } from '@/context/WikiContext';
 
 export const metadata: Metadata = {
-  title: "Mem – Personal Knowledge Wiki",
-  description: "An AI-powered personal wiki that ingests your notes and builds a queryable knowledge base using Groq LLM.",
+  title: 'Mem – Personal Knowledge Wiki',
+  description: 'An AI-powered personal wiki and team collaboration tool built with decentralized Git logic.',
 };
 
 export default function RootLayout({
@@ -13,7 +14,11 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" suppressHydrationWarning>
-      <body>{children}</body>
+      <body>
+        <WikiProvider>
+          {children}
+        </WikiProvider>
+      </body>
     </html>
   );
 }
