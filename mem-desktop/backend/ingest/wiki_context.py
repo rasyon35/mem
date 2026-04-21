@@ -1,6 +1,8 @@
 import re
 from pathlib import Path
 from django.conf import settings
+from .semantic_index import semantic_index
+
 
 
 class WikiContext:
@@ -21,29 +23,59 @@ class WikiContext:
         return "# Wiki Index\n\nNo pages yet."
 
     # ------------------------------------------------------------------
-    # Keyword search
+    # Hybrid search (Keyword + Semantic)
     # ------------------------------------------------------------------
 
-    def search_pages(self, query, max_pages=5):
-        """Simple keyword search across all wiki .md files"""
-        if not self.wiki_path.exists():
+    def search_pages(self, query, max_pages=8):
+        """
+        Retrieves relevant wiki pages using a hybrid approach:
+        1. Semantic Search (Conceptual similarity)
+        2. Keyword Search (Literal presence)
+        """
+        if not self.wiki_path.exists() or not query:
             return ""
 
-        results = []
-        for md_file in self.wiki_path.glob("*.md"):
-            if md_file.name in ("index.md", "log.md"):
-                continue
+        # Score containers {title: total_score}
+        scores = {}
 
-            content = md_file.read_text(encoding="utf-8")
+        # 1. Semantic Search (Weight: 2.0)
+        semantic_results = semantic_index.search(query, top_k=max_pages)
+        for title, score in semantic_results:
+            scores[title] = scores.get(title, 0) + (score * 2.0)
 
-            # If no query, include all pages so we always have context
-            if not query or query.lower() in content.lower():
-                results.append((md_file.stem, content[:1000]))
+        # 2. Keyword Search (Weight: 1.0 per keyword match)
+        keywords = set(re.findall(r"\w+", query.lower()))
+        if keywords:
+            for md_file in self.wiki_path.glob("*.md"):
+                if md_file.name in ("index.md", "log.md") or md_file.name.startswith("."):
+                    continue
 
+                content = md_file.read_text(encoding="utf-8").lower()
+                title = md_file.stem
+                
+                kw_score = 0
+                for kw in keywords:
+                    if kw in content:
+                        kw_score += 1
+                
+                if kw_score > 0:
+                    scores[title] = scores.get(title, 0) + kw_score
+
+        if not scores:
+            return ""
+
+        # Sort combined results
+        sorted_titles = sorted(scores.keys(), key=lambda t: scores[t], reverse=True)
+        
         context = ""
-        for title, snippet in results[:max_pages]:
-            context += f"\n## [[{title}]]\n{snippet}\n---\n"
+        for title in sorted_titles[:max_pages]:
+            content = self.get_page(title)
+            if content:
+                snippet = content[:1200]
+                context += f"\n## [[{title}]]\n{snippet}\n---\n"
+        
         return context
+
 
     # ------------------------------------------------------------------
     # Helpers
@@ -69,6 +101,44 @@ class WikiContext:
         if path.exists():
             return path.read_text(encoding="utf-8")
         return None
+
+    def get_suggested_links(self, title, top_k=5):
+        """
+        Suggests related pages using semantic similarity.
+        Excludes pages already linked in the content.
+        """
+        content = self.get_page(title)
+        if not content:
+            return []
+
+        # 1. Get semantic matches
+        # We query using the title + snippet for more context
+        query = f"{title}\n{content[:500]}"
+        results = semantic_index.search(query, top_k=top_k + 5) # Get extra for filtering
+
+        # 2. Extract existing links
+        existing_links = set(re.findall(r"\[\[([^\]]+)\]\]", content))
+        existing_slugs = {l.replace(" ", "_") for l in existing_links}
+        current_slug = title.replace(" ", "_")
+
+        suggestions = []
+        for match_title, score in results:
+            match_slug = match_title.replace(" ", "_")
+            
+            # Filter criteria:
+            # - Not the current page
+            # - Not already linked
+            # - High enough score (> 0.4)
+            if match_slug == current_slug: continue
+            if match_slug in existing_slugs: continue
+            if score < 0.4: continue
+
+            suggestions.append({
+                "title": match_title,
+                "score": round(float(score), 4)
+            })
+
+        return suggestions[:top_k]
 
 
 # Singleton – resolved path relative to workspace

@@ -14,7 +14,7 @@ class GroqClient:
     # Ingestion
     # ------------------------------------------------------------------
 
-    def generate_wiki_updates(self, text, source_name, existing_wiki_context="", existing_categories=""):
+    def generate_wiki_updates(self, text, source_name, existing_wiki_context="", existing_categories="", source_type="text"):
         """
         Send extracted text to Groq in chunks and get structured wiki updates.
         """
@@ -43,7 +43,8 @@ class GroqClient:
                 f"{source_name} (Part {i+1})", 
                 existing_wiki_context,
                 staged_context,
-                existing_categories
+                existing_categories,
+                source_type
             )
 
             try:
@@ -161,7 +162,7 @@ Rules:
 - Be conservative: don't create pages for trivial or one-off mentions.
 """
 
-    def _build_ingest_prompt(self, text, source_name, existing_wiki_context, staged_context="", existing_categories=""):
+    def _build_ingest_prompt(self, text, source_name, existing_wiki_context, staged_context="", existing_categories="", source_type="text"):
         context_section = (
             existing_wiki_context
             if existing_wiki_context
@@ -172,7 +173,7 @@ Rules:
         if staged_context:
             staged_section = f"\n{staged_context}\nIMPORTANT: You already proposed the pages above from previous parts of this document. If current text adds to them, continue using the same titles to update their content."
 
-        return f"""Source segment to ingest: {source_name}
+        return f"""Source segment to ingest: {source_name} (Type: {source_type})
 
 Source content:
 ```
@@ -257,6 +258,42 @@ Answer based ONLY on the wiki pages. Cite pages using [[Page Name]].
                     yield delta
         except Exception as e:
             yield f"Error: {str(e)}"
+
+    # ------------------------------------------------------------------
+    # Knowledge Clarity (Phase 1)
+    # ------------------------------------------------------------------
+
+    def reconcile_contradiction(self, page_title, existing_claim, new_claim):
+        """Use LLM to synthesize two conflicting claims into one."""
+        prompt = f"""You are resolving a knowledge contradiction in the page: {page_title}
+
+Existing knowledge:
+"{existing_claim}"
+
+New contradictory info from a source:
+"{new_claim}"
+
+Your task:
+1. Reconcile these two claims into a single, accurate, and clear statement.
+2. If one is clearly more detailed or updated, favor it, but preserve context from both if possible.
+3. Be concise and authoritative.
+4. Return ONLY the new reconciled text, no explanations.
+
+Reconciled text:"""
+        try:
+            response = self.client.chat.completions.create(
+                model=self.model,
+                messages=[
+                    {"role": "system", "content": "You are a knowledge architect. Your goal is to synthesize conflicting information into a single grounded truth."},
+                    {"role": "user", "content": prompt},
+                ],
+                temperature=0.2,
+                max_tokens=500,
+            )
+            return response.choices[0].message.content.strip()
+        except Exception as e:
+            return f"Error reconciling claims: {str(e)}"
+
 
 
 # Singleton instance (created lazily so settings are fully loaded)

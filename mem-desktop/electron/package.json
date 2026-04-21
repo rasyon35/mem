@@ -4,14 +4,42 @@
   "main": "main.js",
   "scripts": {
     "start": "electron .",
+    "build-backend": "cd ../backend && ./build_backend.sh",
+    "export-frontend": "cd ../frontend && npm run export",
+    "build": "npm run build-backend && npm run export-frontend && electron-builder",
+    "pack": "electron-builder --dir",
+    "dist": "electron-builder",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [],
-  "author": "",
+  "author": "Mem Team",
   "license": "ISC",
-  "description": "",
+  "description": "Mem: Personal Knowledge Management Desktop Application",
   "dependencies": {
-    "electron": "^41.2.1",
-    "electron-is-dev": "^3.0.1"
+  },
+  "devDependencies": {
+    "electron": "^26.0.0",
+    "electron-builder": "^24.7.0"
+  },
+  "build": {
+    "appId": "com.example.mem",
+    "files": [
+      "**/*",
+      "../frontend/out/**/*",
+      "../backend/dist/**/*"
+    ],
+    "linux": {
+      "target": ["AppImage"]
+    },
+    "extraResources": [
+      {
+        "from": "../backend/dist/backend",
+        "to": "backend"
+      },
+      {
+        "from": "../frontend/out",
+        "to": "frontend"
+      }
+    ]
   }
 }

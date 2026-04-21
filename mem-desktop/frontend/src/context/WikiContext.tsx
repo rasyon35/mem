@@ -39,7 +39,8 @@ interface WikiContextType {
   chatLog: ChatMsg[];
   chatLoading: boolean;
   chatEndRef: React.RefObject<HTMLDivElement | null>;
-  handleChat: () => Promise<void>;
+  handleChat: (pageContext?: string) => Promise<void>;
+
 
   // Wiki
   wikiPages: WikiPage[];
@@ -54,19 +55,13 @@ interface WikiContextType {
 
   // Settings
   contradictions: any[];
+  fetchContradictions: () => Promise<void>;
   resolveContradiction: (id: number, action: 'accept' | 'dismiss') => Promise<void>;
   criticalPages: any[];
   newCritical: string; setNewCritical: (s: string) => void;
   addCritical: () => Promise<void>;
   removeCritical: (title: string) => Promise<void>;
 
-  // Collaboration
-  syncStatus: any;
-  team: any;
-  locks: any[];
-  hubMode: boolean; setHubMode: (v: boolean) => void;
-  remoteUrl: string; setRemoteUrl: (s: string) => void;
-  conflicts: any[];
   handleSync: () => Promise<void>;
   fetchConflicts: () => Promise<void>;
 
@@ -74,13 +69,28 @@ interface WikiContextType {
   modalDiff: { open: boolean; old: string; new: string; title: string };
   setModalDiff: (d: any) => void;
   mergeModalOpen: boolean; setMergeModalOpen: (v: boolean) => void;
-  // Presence
+  // Collaboration / Presence / Sync
   presence: Record<string, { user: string; last_seen: number }>;
   trackActivity: (page: string) => Promise<void>;
   fetchPresence: () => Promise<void>;
+  syncStatus: any;
+  team: any;
+  locks: any[];
+  hubMode: boolean; setHubMode: (v: boolean) => void;
+  remoteUrl: string; setRemoteUrl: (s: string) => void;
+  conflicts: any[];
+  fetchLocks: () => Promise<void>;
+  handleLock: (pageTitle: string, user: string, force?: boolean) => Promise<{ success: boolean; error?: string; owner?: string }>;
+  handleUnlock: (pageTitle: string, user: string, force?: boolean) => Promise<{ success: boolean; error?: string }>;
   // Graph
   graphData: { nodes: any[]; links: any[] };
   fetchGraphData: () => Promise<void>;
+
+  // Phase 5: Synthesis
+  suggestedLinks: { title: string; score: number }[];
+  suggestionsLoading: boolean;
+  fetchSuggestions: (title: string) => Promise<void>;
+  addLinkToPage: (pageTitle: string, targetTitle: string) => Promise<void>;
 }
 
 const WikiContext = createContext<WikiContextType | undefined>(undefined);
@@ -116,17 +126,41 @@ export const WikiProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [presence, setPresence] = useState<Record<string, any>>({});
   const [graphData, setGraphData] = useState<{ nodes: any[]; links: any[] }>({ nodes: [], links: [] });
 
+  const [suggestedLinks, setSuggestedLinks] = useState<{ title: string; score: number }[]>([]);
+  const [suggestionsLoading, setSuggestionsLoading] = useState(false);
+
   // Auto-scroll chat
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [chatLog]);
 
-  // Background Presence Fetch
+  // Background Presence & Heartbeat
   useEffect(() => {
+    // 1. Initial fetch
     fetchPresence();
-    const interval = setInterval(fetchPresence, 5000);
-    return () => clearInterval(interval);
+    fetchTeam();
+    fetchLocks();
+
+    // 2. Poll presence and locks every 10 seconds
+    const pollInterval = setInterval(() => {
+      fetchPresence();
+      fetchLocks();
+    }, 10000);
+
+    return () => clearInterval(pollInterval);
   }, []);
+
+  // 3. Heartbeat for current page activity (every 5 seconds)
+  useEffect(() => {
+    if (!selectedPage?.title) return;
+    
+    trackActivity(selectedPage.title);
+    const activityInterval = setInterval(() => {
+      trackActivity(selectedPage.title);
+    }, 5000);
+
+    return () => clearInterval(activityInterval);
+  }, [selectedPage?.title]);
 
   const handleIngest = async () => {
     if (!file && !url.trim()) return;
@@ -156,19 +190,23 @@ export const WikiProvider: React.FC<{ children: React.ReactNode }> = ({ children
     } finally { setLoading(false); }
   };
 
-  const handleChat = async () => {
+  const handleChat = async (pageContext?: string) => {
     if (!question.trim()) return;
     const q = question.trim();
     setChatLog(prev => [...prev, { role: 'user', text: q }]);
     setQuestion('');
     setChatLoading(true);
     try {
-      const res = await axios.post(`${API}/chat`, { question: q });
+      const payload: any = { question: q };
+      if (pageContext) payload.page_context = pageContext;
+      
+      const res = await axios.post(`${API}/chat`, payload);
       setChatLog(prev => [...prev, { role: 'ai', text: res.data.answer }]);
     } catch {
       setChatLog(prev => [...prev, { role: 'ai', text: '⚠️ Could not reach backend.' }]);
     } finally { setChatLoading(false); }
   };
+
 
   const fetchWikiPages = async () => {
     try {
@@ -270,6 +308,40 @@ export const WikiProvider: React.FC<{ children: React.ReactNode }> = ({ children
     } catch { /* ignore */ }
   };
 
+  const handleLock = async (pageTitle: string, user: string, force = false) => {
+    try {
+      const res = await axios.post(`${API}/locks`, { 
+        page: pageTitle, 
+        user, 
+        action: 'lock', 
+        force 
+      });
+      fetchLocks();
+      return { success: true };
+    } catch (err: any) {
+      return { 
+        success: false, 
+        error: err.response?.data?.error || 'Lock failed',
+        owner: err.response?.data?.owner
+      };
+    }
+  };
+
+  const handleUnlock = async (pageTitle: string, user: string, force = false) => {
+    try {
+      await axios.post(`${API}/locks`, { 
+        page: pageTitle, 
+        user, 
+        action: 'unlock', 
+        force 
+      });
+      fetchLocks();
+      return { success: true };
+    } catch (err: any) {
+      return { success: false, error: 'Unlock failed' };
+    }
+  };
+
   const fetchConflicts = async () => {
     try {
       const res = await axios.get(`${API}/conflicts`);
@@ -291,17 +363,51 @@ export const WikiProvider: React.FC<{ children: React.ReactNode }> = ({ children
     } catch { /* ignore */ }
   };
 
+  const fetchSuggestions = async (title: string) => {
+    setSuggestionsLoading(true);
+    try {
+      const res = await axios.get(`${API}/suggestions?page=${encodeURIComponent(title)}`);
+      setSuggestedLinks(res.data.suggestions || []);
+    } catch { 
+      setSuggestedLinks([]);
+    } finally {
+      setSuggestionsLoading(false);
+    }
+  };
+
+  const addLinkToPage = async (pageTitle: string, targetTitle: string) => {
+    // In a real editor, this would update the state and the file.
+    // For now, we prepend it to the content if possible, or just log.
+    if (!selectedPage || selectedPage.title !== pageTitle) return;
+    
+    setLoading(true);
+    try {
+      const newContent = `${selectedPage.content}\n\n## Related\n- [[${targetTitle}]]`;
+      await axios.post(`${API}/approve`, { 
+        changes: { [pageTitle]: newContent } 
+      });
+      await openPage(pageTitle); // Refresh
+      await fetchSuggestions(pageTitle); // Refresh suggestions
+    } catch {
+      alert('Failed to add link');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <WikiContext.Provider value={{
       file, setFile, url, setUrl, autoApprove, setAutoApprove, loading, result, setResult, handleIngest, handleApprove,
       question, setQuestion, chatLog, chatLoading, chatEndRef, handleChat,
       wikiPages, selectedPage, setSelectedPage, fetchWikiPages, openPage,
       gitHistory, fetchHistory, handleRevert,
-      contradictions, resolveContradiction, criticalPages, newCritical, setNewCritical, addCritical, removeCritical,
-      syncStatus, team, locks, hubMode, setHubMode, remoteUrl, setRemoteUrl, conflicts, handleSync, fetchConflicts,
+      contradictions, fetchContradictions, resolveContradiction, criticalPages, newCritical, setNewCritical, addCritical, removeCritical,
+      syncStatus, team, hubMode, setHubMode, remoteUrl, setRemoteUrl, conflicts, handleSync, fetchConflicts,
       modalDiff, setModalDiff, mergeModalOpen, setMergeModalOpen,
       presence, trackActivity, fetchPresence,
-      graphData, fetchGraphData
+      locks, fetchLocks, handleLock, handleUnlock,
+      graphData, fetchGraphData,
+      suggestedLinks, suggestionsLoading, fetchSuggestions, addLinkToPage
     }}>
       {children}
     </WikiContext.Provider>

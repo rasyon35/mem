@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState, useRef } from 'react';
+import { useEffect, useMemo, useState, useRef, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { useWiki } from '@/context/WikiContext';
 import { WikiIcon, TimelineIcon, ChatIcon, Spinner } from '@/components/Icons';
@@ -11,11 +11,13 @@ const API = 'http://localhost:8000/api';
 
 type MiniMsg = { role: 'user' | 'ai'; text: string };
 
-export default function WikiPage() {
+function WikiContent() {
   const searchParams = useSearchParams();
   const pageTitle = searchParams.get('page');
   const { 
-    wikiPages, selectedPage, fetchWikiPages, openPage, locks, trackActivity
+    wikiPages, selectedPage, fetchWikiPages, openPage, locks, trackActivity,
+    handleLock, handleUnlock,
+    suggestedLinks, suggestionsLoading, fetchSuggestions, addLinkToPage
   } = useWiki();
 
   const [openCategories, setOpenCategories] = useState<Record<string, boolean>>({});
@@ -46,7 +48,10 @@ export default function WikiPage() {
 
   useEffect(() => {
     fetchWikiPages();
-    if (pageTitle) openPage(pageTitle);
+    if (pageTitle) {
+      openPage(pageTitle);
+      fetchSuggestions(pageTitle);
+    }
   }, [pageTitle]);
 
   useEffect(() => {
@@ -145,23 +150,107 @@ export default function WikiPage() {
       </div>
 
       <div className="wiki-content-col">
-        {selectedPage ? (
-          <>
-            <div className="row-space-between mb-4">
-              <h2 className="wiki-content-title">{selectedPage.title.replace(/_/g, ' ')}</h2>
-              <div className="flex gap-2">
-                 <Link href={`/dashboard/timeline?page=${encodeURIComponent(selectedPage.title.replace(/ /g, '_'))}`} className="btn-ghost">
-                   <TimelineIcon /> History
-                 </Link>
-              </div>
-            </div>
-            <pre className="wiki-content-body">{selectedPage.content}</pre>
-          </>
-        ) : (
+        {!selectedPage ? (
           <div className="wiki-empty">
             <WikiIcon />
             <p>Select a page to read</p>
           </div>
+        ) : (
+          <>
+            {/* Lock Banner */}
+            {locks.find((l: any) => l.page === selectedPage.title) && (
+              <div className={`p-4 rounded-2xl mb-4 flex items-center justify-between border ${
+                locks.find((l: any) => l.page === selectedPage.title).owner === 'Me' 
+                ? 'bg-accent/10 border-accent/30' 
+                : 'bg-red-500/10 border-red-500/30'
+              }`}>
+                <div className="flex items-center gap-3">
+                  <span className="text-xl">{locks.find((l: any) => l.page === selectedPage.title).owner === 'Me' ? '✏️' : '🔒'}</span>
+                  <div>
+                    <p className="text-sm font-bold text-white">
+                      {locks.find((l: any) => l.page === selectedPage.title).owner === 'Me' 
+                        ? 'You have locked this page for editing.' 
+                        : `This page is locked by ${locks.find((l: any) => l.page === selectedPage.title).owner}`}
+                    </p>
+                    <p className="text-[11px] text-muted">Active since {new Date(locks.find((l: any) => l.page === selectedPage.title).timestamp * 1000).toLocaleTimeString()}</p>
+                  </div>
+                </div>
+                {locks.find((l: any) => l.page === selectedPage.title).owner === 'Me' && (
+                  <button className="btn-ghost py-1 px-4 text-xs font-black" onClick={() => handleUnlock(selectedPage.title, 'Me')}>Release Lock</button>
+                )}
+              </div>
+            )}
+
+            <div className="row-space-between mb-4">
+              <h2 className="wiki-content-title">{selectedPage.title.replace(/_/g, ' ')}</h2>
+              <div className="flex gap-2">
+                 {!locks.find((l: any) => l.page === selectedPage.title) && (
+                   <button className="btn-primary py-1 px-4 text-xs font-black" onClick={() => handleLock(selectedPage.title, 'Me')}>
+                     Edit & Lock
+                   </button>
+                 )}
+                 <Link href={`/dashboard/timeline?page=${encodeURIComponent(selectedPage.title.replace(/ /g, '_'))}`} className="btn-ghost" style={{ padding: '4px 12px', fontSize: '12px' }}>
+                   <TimelineIcon size={16} /> History
+                 </Link>
+                 <a 
+                   href={`${API}/export_page?page=${encodeURIComponent(selectedPage.title)}&format=pdf`}
+                   download
+                   className="btn-ghost" 
+                   style={{ padding: '4px 12px', fontSize: '12px', borderColor: 'rgba(108,99,255,0.4)', color: 'var(--accent)' }}
+                   title="Export page as PDF"
+                 >
+                   ↓ Export PDF
+                 </a>
+              </div>
+            </div>
+            <pre className={`wiki-content-body ${locks.find((l: any) => l.page === selectedPage.title && l.owner !== 'Me') ? 'opacity-50 pointer-events-none' : ''}`}>
+              {selectedPage.content}
+            </pre>
+
+            {/* Suggested Relationships Panel */}
+            <div className="mt-12 p-8 rounded-3xl bg-white/3 border border-white/8">
+              <div className="flex items-center justify-between mb-6">
+                <div>
+                  <h3 className="text-lg font-black text-white">Suggested Relationships</h3>
+                  <p className="text-xs text-muted mt-1">AI-detected conceptual links for this page</p>
+                </div>
+                <button 
+                  onClick={() => fetchSuggestions(selectedPage.title)} 
+                  disabled={suggestionsLoading}
+                  className="btn-ghost text-[10px] uppercase font-black tracking-widest py-1.5 px-3"
+                >
+                  {suggestionsLoading ? <Spinner /> : 'Refresh'}
+                </button>
+              </div>
+
+              {suggestionsLoading ? (
+                <div className="flex items-center gap-4 py-4">
+                  <Spinner /> <span className="text-xs text-muted">Analyzing local knowledge graph...</span>
+                </div>
+              ) : suggestedLinks.length === 0 ? (
+                <p className="text-sm text-muted italic">No additional relationships detected yet.</p>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {suggestedLinks.map(s => (
+                    <div key={s.title} className="flex items-center justify-between p-4 rounded-2xl bg-black/20 border border-white/5 hover:border-accent/40 transition-all group">
+                      <div className="flex items-center gap-3">
+                        <div className="w-8 h-8 rounded-lg bg-accent/10 border border-accent/20 flex items-center justify-center text-accent text-[10px] font-black">
+                          {Math.round(s.score * 100)}%
+                        </div>
+                        <span className="text-sm font-bold text-secondary group-hover:text-white transition-colors">{s.title.replace(/_/g, ' ')}</span>
+                      </div>
+                      <button 
+                        onClick={() => addLinkToPage(selectedPage.title, s.title)}
+                        className="btn-primary py-1 px-3 text-[10px] font-black tracking-tighter opacity-0 group-hover:opacity-100 transition-opacity"
+                      >
+                        Add Link
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </>
         )}
       </div>
 
@@ -225,5 +314,13 @@ export default function WikiPage() {
         </div>
       )}
     </section>
+  );
+}
+
+export default function WikiPage() {
+  return (
+    <Suspense fallback={<div>Loading wiki...</div>}>
+      <WikiContent />
+    </Suspense>
   );
 }

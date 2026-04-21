@@ -6,8 +6,9 @@ import { usePathname } from 'next/navigation';
 import { useWiki } from '@/context/WikiContext';
 import { 
   IngestIcon, ChatIcon,  WikiIcon, GraphIcon,
-  TimelineIcon, CollabIcon, SettingsIcon 
+  TimelineIcon, CollabIcon, SettingsIcon, ConflictIcon, SynthesisIcon, ResearchIcon
 } from './Icons';
+
 
 export default function Sidebar() {
   const pathname = usePathname();
@@ -43,9 +44,13 @@ export default function Sidebar() {
     { title: 'Wiki', path: '/dashboard/wiki', icon: <WikiIcon /> },
     { title: 'Graph', path: '/dashboard/graph', icon: <GraphIcon /> },
     { title: 'Timeline', path: '/dashboard/timeline', icon: <TimelineIcon /> },
+    { title: 'Conflicts', path: '/dashboard/contradictions', icon: <ConflictIcon />, badge: contradictions.length },
+    { title: 'Organize', path: '/dashboard/organize', icon: <SynthesisIcon /> },
+    { title: 'Research', path: '/dashboard/research', icon: <ResearchIcon /> },
     { title: 'Collab', path: '/dashboard/collab', icon: <CollabIcon /> },
-    { title: 'Settings', path: '/dashboard/settings', icon: <SettingsIcon />, badge: contradictions.length },
+    { title: 'Settings', path: '/dashboard/settings', icon: <SettingsIcon /> },
   ];
+
 
   return (
     <aside className="sidebar">

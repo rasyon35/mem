@@ -91,6 +91,24 @@ export default function SettingsPage() {
         </div>
       </div>
 
+      {/* --- Data Export & Archival Card --- */}
+      <div className="card">
+        <div className="flex justify-between items-center mb-2">
+          <div>
+            <h2 className="text-xl font-bold">Data Export & Archival</h2>
+            <p className="panel-sub">Download a complete snapshot of your knowledge base, including all markdown files.</p>
+          </div>
+          <a
+            href={`${API}/export_all`}
+            download
+            className="btn-primary flex items-center justify-center gap-2"
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+            Download Archive (.zip)
+          </a>
+        </div>
+      </div>
+
       {/* --- Bulk Reorganization Card --- */}
       <div className="card">
         <div className="flex justify-between items-center mb-2">

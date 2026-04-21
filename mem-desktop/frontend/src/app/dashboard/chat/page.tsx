@@ -52,7 +52,7 @@ export default function ChatPage() {
           />
           <button
             className="btn-primary"
-            onClick={handleChat}
+            onClick={() => handleChat()}
             disabled={chatLoading || !question.trim()}
           >
             {chatLoading ? <Spinner /> : 'Ask'}

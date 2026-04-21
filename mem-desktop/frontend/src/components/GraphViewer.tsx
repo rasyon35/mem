@@ -2,9 +2,14 @@
 
 import { useWiki } from '@/context/WikiContext';
 import { useEffect, useRef, useState, useMemo, useCallback } from 'react';
-import ForceGraph2D from 'react-force-graph-2d';
-import axios from 'axios';
+import dynamic from 'next/dynamic';
+
+const ForceGraph2D = dynamic(() => import('react-force-graph-2d'), { ssr: false });
+const ForceGraph3D = dynamic(() => import('react-force-graph-3d'), { ssr: false });
+
 import { Spinner, ChatIcon, WikiIcon } from '@/components/Icons';
+import axios from 'axios';
+
 import Link from 'next/link';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
@@ -12,10 +17,11 @@ import remarkGfm from 'remark-gfm';
 const API = 'http://localhost:8000/api';
 const HUB_THRESHOLD = 3;
 
-type DetailMsg = { role: 'user' | 'ai'; text: string };
+
+
 
 export default function GraphViewer({ onNodeClick }: { onNodeClick?: (title: string) => void }) {
-  const { graphData, fetchGraphData, wikiPages } = useWiki();
+  const { graphData, fetchGraphData, wikiPages, presence, locks } = useWiki();
   const containerRef = useRef<HTMLDivElement>(null);
   const graphRef = useRef<any>(null);
   const [dimensions, setDimensions] = useState({ width: 800, height: 600 });
@@ -23,6 +29,7 @@ export default function GraphViewer({ onNodeClick }: { onNodeClick?: (title: str
   const [selectedNode, setSelectedNode] = useState<string | null>(null);
   const [expandedHubs, setExpandedHubs] = useState<Set<string>>(new Set());
   const [hoveredNode, setHoveredNode] = useState<string | null>(null);
+  const [is3D, setIs3D] = useState(true);
 
   /* ─── Panel state ─────────────────────────────────────────── */
   const [detailNode, setDetailNode] = useState<any>(null);
@@ -31,10 +38,15 @@ export default function GraphViewer({ onNodeClick }: { onNodeClick?: (title: str
   const [isResizing, setIsResizing] = useState(false);
   const [showMentions, setShowMentions] = useState(false);
   const [showRelated, setShowRelated] = useState(false);
-  const [detailChat, setDetailChat] = useState<DetailMsg[]>([]);
-  const [detailInput, setDetailInput] = useState('');
-  const [detailLoading, setDetailLoading] = useState(false);
-  const chatEndRef = useRef<HTMLDivElement>(null);
+  const [hubSynthesis, setHubSynthesis] = useState<string | null>(null);
+  const [synthesisLoading, setSynthesisLoading] = useState(false);
+  
+  // Chat state now comes from WikiContext
+  const { 
+    chatLog, chatLoading, chatEndRef, 
+    handleChat, question, setQuestion 
+  } = useWiki();
+
 
   /* ─── Lifecycle ───────────────────────────────────────────── */
   useEffect(() => {
@@ -51,7 +63,8 @@ export default function GraphViewer({ onNodeClick }: { onNodeClick?: (title: str
 
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [detailChat]);
+  }, [chatLog, chatEndRef]);
+
 
   /* ─── Resizable panel ─────────────────────────────────────── */
   const startResizing = useCallback((e: React.MouseEvent) => { e.preventDefault(); setIsResizing(true); }, []);
@@ -122,26 +135,46 @@ export default function GraphViewer({ onNodeClick }: { onNodeClick?: (title: str
     setActiveTab('overview');
     setShowMentions(false);
     setShowRelated(false);
-    setDetailChat([]);
-    setDetailInput('');
+    setHubSynthesis(null); // Reset synthesis when switching nodes
     onNodeClick?.(node.id);
-  }, [hubIds, toggleHub, onNodeClick]);
 
-  const closeDetail = () => { setDetailNode(null); setDetailChat([]); setSelectedNode(null); };
+    // 3D fly-to-node logic
+    if (is3D && graphRef.current && graphRef.current.cameraPosition) {
+      const distance = 80;
+      const distRatio = 1 + distance / Math.hypot(node.x, node.y, node.z);
+      
+      graphRef.current.cameraPosition(
+        { x: node.x * distRatio, y: node.y * distRatio, z: node.z * distRatio }, 
+        node, 
+        1500 
+      );
+    }
+  }, [hubIds, toggleHub, onNodeClick, is3D]);
 
-  const handleChat = async () => {
-    if (!detailInput.trim() || !detailNode) return;
-    const q = detailInput.trim();
-    setDetailChat(p => [...p, { role: 'user', text: q }]);
-    setDetailInput('');
-    setDetailLoading(true);
-    try {
-      const res = await axios.post(`${API}/chat`, { question: q, page_context: detailNode.id });
-      setDetailChat(p => [...p, { role: 'ai', text: res.data.answer }]);
-    } catch {
-      setDetailChat(p => [...p, { role: 'ai', text: '⚠️ Could not reach the knowledge engine.' }]);
-    } finally { setDetailLoading(false); }
+
+  const closeDetail = () => { 
+    setDetailNode(null); 
+    setSelectedNode(null); 
   };
+
+  const handleGraphChat = async () => {
+    if (!question.trim() || !detailNode) return;
+    await handleChat(detailNode.id);
+  };
+
+  const handleSynthesizeHub = async () => {
+    if (!detailNode) return;
+    setSynthesisLoading(true);
+    try {
+      const res = await axios.get(`${API}/synthesize_hub?hub=${encodeURIComponent(detailNode.id)}`);
+      setHubSynthesis(res.data.synthesis);
+    } catch {
+      setHubSynthesis('Failed to synthesize hub relationships.');
+    } finally {
+      setSynthesisLoading(false);
+    }
+  };
+
 
   /* ─── Derived data ────────────────────────────────────────── */
   const sources = useMemo(() => {
@@ -162,10 +195,12 @@ export default function GraphViewer({ onNodeClick }: { onNodeClick?: (title: str
     if (hubIds.has(node.id)) return '#ef4444';
     if (node.is_orphan) return '#64748b';
     const t = (node.type || '').toLowerCase();
+    if (t === 'ghost') return 'rgba(255,255,255,0.2)'; 
     if (t.includes('source')) return '#f59e0b';
     if (t.includes('entity')) return '#3b82f6';
     return '#10b981';
   };
+
 
   const canvasWidth = detailNode ? Math.max(dimensions.width - panelWidth - 6, 350) : dimensions.width;
 
@@ -191,6 +226,14 @@ export default function GraphViewer({ onNodeClick }: { onNodeClick?: (title: str
             </div>
           </div>
           <div className="pointer-events-auto flex items-center gap-3 bg-white/5 backdrop-blur-2xl border border-white/8 rounded-2xl px-4 py-3 shadow-2xl">
+            <button 
+              onClick={() => setIs3D(!is3D)} 
+              className="px-3 py-1.5 rounded-lg border border-white/10 text-xs font-bold uppercase tracking-wider hover:bg-white/10 transition-colors"
+              style={{ color: is3D ? '#a78bfa' : '#9ca3af' }}
+              title="Toggle between 2D and 3D Visualization"
+            >
+              {is3D ? '3D Mode' : '2D Mode'}
+            </button>
             <input
               type="text"
               value={searchTerm}
@@ -202,7 +245,24 @@ export default function GraphViewer({ onNodeClick }: { onNodeClick?: (title: str
           </div>
         </div>
 
-        <ForceGraph2D
+        {is3D ? (
+          <ForceGraph3D
+            ref={graphRef}
+            graphData={filteredData}
+            width={canvasWidth}
+            height={dimensions.height}
+            nodeLabel={() => ''}
+            nodeColor={nodeColor}
+            nodeRelSize={6}
+            linkColor={() => 'rgba(255,255,255,0.15)'}
+            onNodeClick={handleNodeClick}
+            nodeResolution={16}
+            linkOpacity={0.3}
+            backgroundColor="rgba(0,0,0,0)"
+            onNodeHover={(node: any) => setHoveredNode(node ? node.id : null)}
+          />
+        ) : (
+          <ForceGraph2D
           ref={graphRef}
           graphData={filteredData}
           width={canvasWidth}
@@ -215,7 +275,20 @@ export default function GraphViewer({ onNodeClick }: { onNodeClick?: (title: str
           nodeCanvasObjectMode={() => 'after'}
           nodeCanvasObject={(node: any, ctx, gs) => {
             const isHub = hubIds.has(node.id);
+            const isGhost = node.type === 'ghost';
+            
+            // Draw ghost ring
+            if (isGhost) {
+              ctx.beginPath();
+              ctx.setLineDash([2, 2]);
+              ctx.arc(node.x, node.y, (node.val || 5) + 2, 0, 2 * Math.PI, false);
+              ctx.strokeStyle = 'rgba(255,255,255,0.3)';
+              ctx.stroke();
+              ctx.setLineDash([]);
+            }
+
             if (!isHub && selectedNode !== node.id && hoveredNode !== node.id && gs < 1.5) return;
+
             const label = (node.name || node.id).replace(/_/g, ' ');
             const fs = (isHub ? 13 : 11) / gs;
             ctx.font = `${isHub ? 700 : 400} ${fs}px Inter,sans-serif`;
@@ -225,6 +298,7 @@ export default function GraphViewer({ onNodeClick }: { onNodeClick?: (title: str
             ctx.fillStyle = isHub ? '#fff' : 'rgba(255,255,255,0.75)'; ctx.fillText(label, node.x, y);
           }}
         />
+        )}
       </div>
 
       {/* ── Resize handle ──────────────────────────────────────── */}
@@ -246,6 +320,31 @@ export default function GraphViewer({ onNodeClick }: { onNodeClick?: (title: str
           className="flex-shrink-0 flex flex-col bg-bg-900 border-l border-white/5 z-20"
           style={{ width: panelWidth, height: dimensions.height, boxShadow: '-32px 0 80px rgba(0,0,0,0.7)' }}
         >
+          {/* Global Presence Bar */}
+          <div className="flex-shrink-0 border-b border-white/5 bg-black/10 px-6 py-2 flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="flex -space-x-1.5">
+                {Object.entries(presence).map(([hub, data]: [string, any]) => (
+                  <div 
+                    key={hub} 
+                    className="w-6 h-6 rounded-full bg-accent/20 border border-[#111111] flex items-center justify-center text-[9px] font-black text-accent cursor-help group relative"
+                  >
+                    {data.user.slice(0, 2).toUpperCase()}
+                    <div className="absolute top-full left-1/2 -translate-x-1/2 mt-2 px-2 py-1 bg-black/95 text-white rounded-lg text-[10px] font-bold opacity-0 group-hover:opacity-100 transition-all scale-95 group-hover:scale-100 whitespace-nowrap z-50 pointer-events-none border border-white/10 shadow-2xl">
+                      {data.user} is viewing <span className="text-accent">{hub}</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+              <span className="text-[9px] font-black uppercase tracking-[0.15em] text-white/40">
+                {Object.keys(presence).length > 0 ? 'Live Explorers' : 'Synced'}
+              </span>
+            </div>
+            <div className="flex items-center gap-2">
+              <div className={`w-1.5 h-1.5 rounded-full ${Object.keys(presence).length > 0 ? 'bg-green-500 animate-pulse' : 'bg-white/10'}`} />
+              <span className="text-[9px] font-black uppercase tracking-[0.2em] text-white/30">Hub Status: Online</span>
+            </div>
+          </div>
           {/* ══════════════════════════════════════════════════════ */}
           {/* ZONE A — HEADER (pinned, ~30% height)                  */}
           {/* ══════════════════════════════════════════════════════ */}
@@ -265,12 +364,13 @@ export default function GraphViewer({ onNodeClick }: { onNodeClick?: (title: str
                   style={{
                     padding: '6px 16px',
                     fontSize: '10px',
-                    background: hubIds.has(detailNode.id) ? 'rgba(239,68,68,0.12)' : 'rgba(16,185,129,0.12)',
-                    color: hubIds.has(detailNode.id) ? '#f87171' : '#34d399'
+                    background: detailNode.type === 'ghost' ? 'rgba(255,255,255,0.05)' : hubIds.has(detailNode.id) ? 'rgba(239,68,68,0.12)' : 'rgba(16,185,129,0.12)',
+                    color: detailNode.type === 'ghost' ? '#94a3b8' : hubIds.has(detailNode.id) ? '#f87171' : '#34d399'
                   }}
                 >
-                  {hubIds.has(detailNode.id) ? 'Knowledge Hub' : (detailNode.type || 'Concept')}
+                  {detailNode.type === 'ghost' ? 'Uncharted Topic' : hubIds.has(detailNode.id) ? 'Knowledge Hub' : (detailNode.type || 'Concept')}
                 </span>
+
                 <button
                   onClick={closeDetail}
                   className="flex items-center justify-center rounded-full bg-white/5 hover:bg-white/10 border border-white/8 text-muted hover:text-white transition-all"
@@ -299,21 +399,39 @@ export default function GraphViewer({ onNodeClick }: { onNodeClick?: (title: str
                 ].map(({ dot, count, label }) => (
                   <div
                     key={label}
-                    className="flex flex-col items-center justify-center rounded-2xl border border-white/8"
-                    style={{ flex: 1, background: 'rgba(255,255,255,0.04)', padding: '14px 8px', gap: '4px' }}
+                    className="flex-1 flex flex-col items-center justify-center bg-white/5 border border-white/8 rounded-2xl py-3"
                   >
-                    <span className="font-black text-white" style={{ fontSize: '22px', lineHeight: 1 }}>{count}</span>
-                    <div className="flex items-center" style={{ gap: '5px' }}>
-                      <span className="rounded-full" style={{ width: '6px', height: '6px', background: dot, flexShrink: 0 }} />
-                      <span className="font-black uppercase text-muted" style={{ fontSize: '9px', letterSpacing: '0.2em' }}>{label}</span>
+                    <span className="text-xl font-black text-white mb-0.5">{count}</span>
+                    <div className="flex items-center gap-1.5 opacity-60">
+                      <div className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: dot }} />
+                      <span className="text-[9px] uppercase font-bold tracking-wider">{label}</span>
                     </div>
                   </div>
                 ))}
               </div>
-            </div>
 
-            {/* Tab switcher */}
-            <div style={{ padding: '0 32px 32px' }}>
+              {/* Ghost Node Action */}
+              {detailNode.type === 'ghost' && (
+                <div className="mt-8">
+                  <button 
+                    onClick={() => {
+                       // Logic to instantiate page
+                       alert('LLM will now generate a baseline for this topic...');
+                    }}
+                    className="w-full flex items-center justify-center gap-3 bg-accent hover:bg-accent-light text-white py-4 rounded-2xl font-black text-sm transition-all shadow-xl shadow-accent/20 group"
+                  >
+                    <span>Instantiate Knowledge</span>
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" className="group-hover:translate-x-1 transition-transform">
+                      <path d="M5 12h14M12 5l7 7-7 7" />
+                    </svg>
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
+
+          <div style={{ padding: '0 32px 32px' }}>
+
               <div className="flex gap-2 rounded-2xl border border-white/8" style={{ padding: '8px', background: 'rgba(255,255,255,0.04)' }}>
                 {(['overview', 'chat'] as const).map(tab => (
                   <button
@@ -351,7 +469,7 @@ export default function GraphViewer({ onNodeClick }: { onNodeClick?: (title: str
                 ))}
               </div>
             </div>
-          </div>
+
 
           {/* ══════════════════════════════════════════════════════ */}
           {/* ZONE B — MAIN CONTENT (scrollable, flex-1)             */}
@@ -361,9 +479,25 @@ export default function GraphViewer({ onNodeClick }: { onNodeClick?: (title: str
 
               {/* Analysis Body */}
               <div style={{ padding: '36px 32px 28px' }}>
-                {detailNode.summary ? (
+                {hubIds.has(detailNode.id) && !hubSynthesis && (
+                  <div className="mb-8 p-6 rounded-2xl bg-accent/5 border border-accent/20">
+                    <h4 className="text-sm font-black text-accent uppercase tracking-widest mb-2">Automated Synthesis</h4>
+                    <p className="text-[13px] text-secondary mb-4 leading-relaxed">
+                      This node is a high-density Knowledge Hub. We can synthesize its connected pages to explain the underlying logic of this cluster.
+                    </p>
+                    <button 
+                      onClick={handleSynthesizeHub}
+                      disabled={synthesisLoading}
+                      className="btn-primary w-full flex items-center justify-center gap-2 py-3 text-[11px] font-black uppercase tracking-widest"
+                    >
+                      {synthesisLoading ? <Spinner /> : 'Synthesize Insights'}
+                    </button>
+                  </div>
+                )}
+
+                {(hubSynthesis || detailNode.summary) ? (
                   <div className="prose prose-invert prose-sm max-w-none text-secondary" style={{ lineHeight: 2.1, fontSize: '15px' }}>
-                    <ReactMarkdown remarkPlugins={[remarkGfm]}>{detailNode.summary}</ReactMarkdown>
+                    <ReactMarkdown remarkPlugins={[remarkGfm]}>{hubSynthesis || detailNode.summary}</ReactMarkdown>
                   </div>
                 ) : (
                   <div className="text-center" style={{ padding: '40px 0' }}>
@@ -516,7 +650,7 @@ export default function GraphViewer({ onNodeClick }: { onNodeClick?: (title: str
             <div className="flex-1 flex flex-col min-h-0">
               {/* Messages */}
               <div className="flex-1 overflow-y-auto custom-scrollbar" style={{ padding: '32px 28px', display: 'flex', flexDirection: 'column', gap: '20px' }}>
-                {detailChat.length === 0 && (
+                {chatLog.length === 0 && (
                   <div className="h-full flex flex-col items-center justify-center text-center" style={{ padding: '40px 24px' }}>
                     <div
                       className="rounded-3xl flex items-center justify-center border border-white/8"
@@ -545,7 +679,7 @@ export default function GraphViewer({ onNodeClick }: { onNodeClick?: (title: str
                       ].map(prompt => (
                         <button
                           key={prompt}
-                          onClick={() => setDetailInput(prompt)}
+                          onClick={() => setQuestion(prompt)}
                           className="rounded-2xl bg-white/5 hover:bg-white/8 border border-white/8 hover:border-accent/40 text-secondary hover:text-white font-medium text-left transition-all"
                           style={{ padding: '14px 18px', fontSize: '13px' }}
                         >
@@ -556,7 +690,8 @@ export default function GraphViewer({ onNodeClick }: { onNodeClick?: (title: str
                   </div>
                 )}
 
-                {detailChat.map((msg, i) => (
+
+                {chatLog.map((msg, i) => (
                   <div key={i} style={{ display: 'flex', justifyContent: msg.role === 'user' ? 'flex-end' : 'flex-start' }}>
                     {msg.role === 'ai' && (
                       <div className="rounded-xl bg-accent/20 border border-accent/30 flex items-center justify-center flex-shrink-0" style={{ width: '32px', height: '32px', marginRight: '12px', marginTop: '4px' }}>
@@ -593,7 +728,7 @@ export default function GraphViewer({ onNodeClick }: { onNodeClick?: (title: str
                   </div>
                 ))}
 
-                {detailLoading && (
+                {chatLoading && (
                   <div style={{ display: 'flex', alignItems: 'flex-start', gap: '12px' }}>
                     <div className="rounded-xl bg-accent/20 border border-accent/30 flex items-center justify-center flex-shrink-0" style={{ width: '32px', height: '32px' }}>
                       <span className="font-black text-accent" style={{ fontSize: '10px' }}>AI</span>
@@ -603,11 +738,12 @@ export default function GraphViewer({ onNodeClick }: { onNodeClick?: (title: str
                     </div>
                   </div>
                 )}
+
                 <div ref={chatEndRef} />
               </div>
 
               {/* Input bar — anchored to bottom */}
-              <div className="flex-shrink-0 border-t border-white/5" style={{ padding: '24px 28px 32px' }}>
+              <div className="flex-shrink-0 border-t border-white/5" style={{ padding: '32px 36px 40px' }}>
                 <div
                   className="flex items-center rounded-2xl border border-white/10 transition-all focus-within:border-accent/50"
                   style={{ background: 'rgba(255,255,255,0.04)', padding: '8px 8px 8px 20px', gap: '8px' }}
@@ -616,17 +752,17 @@ export default function GraphViewer({ onNodeClick }: { onNodeClick?: (title: str
                     className="flex-1 bg-transparent text-white placeholder:text-muted outline-none font-medium"
                     style={{ fontSize: '14px', padding: '10px 0' }}
                     placeholder="Ask a question…"
-                    value={detailInput}
-                    onChange={e => setDetailInput(e.target.value)}
-                    onKeyDown={e => e.key === 'Enter' && !e.shiftKey && handleChat()}
+                    value={question}
+                    onChange={e => setQuestion(e.target.value)}
+                    onKeyDown={e => e.key === 'Enter' && !e.shiftKey && handleChat(detailNode.id)}
                   />
                   <button
-                    onClick={handleChat}
-                    disabled={detailLoading || !detailInput.trim()}
+                    onClick={() => handleChat(detailNode.id)}
+                    disabled={chatLoading || !question.trim()}
                     className="flex items-center gap-2 rounded-xl font-black uppercase text-white transition-all hover:scale-[1.03] disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:scale-100"
                     style={{ padding: '12px 22px', fontSize: '11px', letterSpacing: '0.12em', background: 'linear-gradient(135deg,var(--accent),var(--accent-dark))', boxShadow: '0 6px 20px rgba(108,99,255,0.3)' }}
                   >
-                    {detailLoading ? <Spinner /> : (
+                    {chatLoading ? <Spinner /> : (
                       <>
                         Send
                         <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
@@ -635,6 +771,7 @@ export default function GraphViewer({ onNodeClick }: { onNodeClick?: (title: str
                       </>
                     )}
                   </button>
+
                 </div>
                 <p className="text-center text-muted" style={{ fontSize: '10px', marginTop: '12px', letterSpacing: '0.08em' }}>Enter to send · Context: {(detailNode.name || '').replace(/_/g, ' ')}</p>
               </div>

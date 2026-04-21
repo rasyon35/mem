@@ -72,11 +72,11 @@
 .chat-container {
   flex: 1;
   background: transparent;
-  padding: 2rem 2.5rem;
+  padding: 3rem 4rem;
   overflow-y: auto;
   display: flex;
   flex-direction: column;
-  gap: 1.5rem;
+  gap: 2rem;
   scroll-behavior: smooth;
 }
 
@@ -158,7 +158,7 @@
 }
 
 .chat-input-wrapper {
-  padding: 1.5rem 2.5rem 2rem;
+  padding: 2rem 3rem 3rem;
   background: linear-gradient(to top, var(--bg-900) 80%, transparent);
   border-top: 1px solid var(--border);
 }
@@ -192,21 +192,21 @@
 }
 
 .wiki-list-col {
-  width: 300px;
+  width: 320px;
   flex-shrink: 0;
   background: var(--bg-800);
   border-right: 1px solid var(--border);
-  padding: 2rem 1.25rem;
+  padding: 2.5rem 1.5rem;
   overflow-y: auto;
   min-height: 100vh;
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 12px;
 }
 
 .wiki-content-col {
   flex: 1;
-  padding: 2.5rem 2.5rem;
+  padding: 4rem 5rem;
   overflow-y: auto;
   min-height: 100vh;
 }
@@ -217,13 +217,13 @@
   background: transparent;
   border: 1px solid transparent;
   border-radius: var(--radius-sm);
-  padding: 0.6rem 0.85rem;
-  margin-bottom: 2px;
+  padding: 0.8rem 1rem;
+  margin-bottom: 4px;
   cursor: pointer;
   transition: all var(--t);
   display: flex;
   flex-direction: column;
-  gap: 3px;
+  gap: 6px;
 }
 
 .wiki-page-btn:hover { background: var(--bg-600); border-color: var(--border); }

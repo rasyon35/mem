@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useWiki } from '@/context/WikiContext';
-import { Spinner } from '@/components/Icons';
+import { Spinner, TimelineIcon } from '@/components/Icons';
 import axios from 'axios';
 
 const API = 'http://localhost:8000/api';
@@ -104,18 +104,56 @@ export default function CollabPage() {
       </div>
 
       <div className="card mt-6">
-        <div className="flex justify-between items-center">
-          <div>
-            <h2 className="text-xl font-bold">Synchronization</h2>
-            <p className="text-sm text-secondary">
-              {syncStatus?.status === 'synced' ? 'Everything is up to date.' : 
-               syncStatus?.status === 'behind' ? "Remote has changes you don't have." :
-               'Checking status...'}
-            </p>
+        <div className="flex justify-between items-center p-8">
+          <div className="flex items-center gap-6">
+            <div className={`w-14 h-14 rounded-2xl flex items-center justify-center border ${
+              syncStatus?.status === 'synced' ? 'bg-green-500/10 border-green-500/20 text-green-500' : 
+              syncStatus?.status === 'behind' ? 'bg-orange-500/10 border-orange-500/20 text-orange-500' :
+              syncStatus?.status === 'ahead' ? 'bg-blue-500/10 border-blue-500/20 text-blue-500' :
+              'bg-white/5 border-white/10 text-muted'
+            }`}>
+              <TimelineIcon size={24} />
+            </div>
+            <div>
+              <div className="flex items-center gap-2 mb-1">
+                <h2 className="text-xl font-black text-white">Synchronization</h2>
+                {syncStatus?.branch && (
+                  <span className="text-[10px] font-black uppercase tracking-widest px-2 py-0.5 rounded-md bg-white/5 border border-white/10 text-muted">
+                    {syncStatus.branch}
+                  </span>
+                )}
+              </div>
+              <p className="text-sm text-secondary font-medium">
+                {syncStatus?.status === 'synced' && 'Knowledge base is perfectly in sync with the hub.'}
+                {syncStatus?.status === 'behind' && `Hub is ahead by ${syncStatus.behind_by} conceptual update${syncStatus.behind_by > 1 ? 's' : ''}.`}
+                {syncStatus?.status === 'ahead' && `You have ${syncStatus.ahead_by} local update${syncStatus.ahead_by > 1 ? 's' : ''} to push.`}
+                {syncStatus?.status === 'diverged' && 'Local and Hub have diverged. Manual merge required.'}
+                {!syncStatus && 'Analyzing link to remote hub...'}
+              </p>
+            </div>
           </div>
-          <button className="btn-primary" onClick={handleSync} disabled={loading}>
-            {loading ? <Spinner /> : 'Sync Now'}
-          </button>
+          <div className="flex items-center gap-3">
+            {syncStatus?.status === 'behind' && (
+              <div className="text-right mr-4">
+                <p className="text-[10px] font-black uppercase tracking-widest text-orange-500">Update Available</p>
+                <p className="text-[11px] text-muted">{syncStatus.behind_by} new commits</p>
+              </div>
+            )}
+            <button 
+              className={`btn-${syncStatus?.status === 'behind' ? 'success' : 'primary'} flex items-center gap-3 px-8 py-3`} 
+              onClick={handleSync} 
+              disabled={loading}
+            >
+              {loading ? <Spinner /> : (
+                <>
+                  <span className="font-black uppercase tracking-widest text-[11px]">{syncStatus?.status === 'behind' ? 'Pull Updates' : 'Sync Hub'}</span>
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
+                    <path d="M21 2v6h-6M3 22v-6h6M21 2c-1.8-1.8-4.3-3-7-3C8.5-1 4.5 2.5 3 7M3 22c1.8 1.8 4.3 3 7 3 5.5 0 9.5-3.5 11-8" />
+                  </svg>
+                </>
+              )}
+            </button>
+          </div>
         </div>
         
         {conflicts.length > 0 && (
@@ -128,10 +166,10 @@ export default function CollabPage() {
 
       {/* ──────────────────── Team Roles ──────────────────── */}
       <div className="card mt-6" style={{ padding: 0, overflow: 'hidden' }}>
-        <div className="flex justify-between items-center px-6 py-5 border-b border-border">
+        <div className="flex justify-between items-center px-12 py-6 border-b border-border">
           <div>
             <h2 className="text-xl font-bold">Team Roles</h2>
-            <p className="panel-sub mt-0.5">Manage access levels for each team member.</p>
+            <p className="panel-sub mt-0.5" style={{ marginLeft: '4px' }}>Manage access levels for each team member.</p>
           </div>
           <button className="btn-ghost text-xs py-1.5 px-3" onClick={fetchTeam}>↻ Refresh</button>
         </div>
@@ -149,7 +187,7 @@ export default function CollabPage() {
                 <div
                   key={role}
                   className="flex items-start justify-between group hover:bg-white/2 transition-colors"
-                  style={{ padding: '28px 32px', borderBottom: '1px solid var(--border)' }}
+                  style={{ padding: '28px 48px', borderBottom: '1px solid var(--border)' }}
                 >
                   <div className="flex-1 min-w-0">
                     {/* Role badge + description */}

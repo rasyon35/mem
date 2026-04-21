@@ -51,10 +51,10 @@ export default function IngestPage() {
         <label className="dropzone">
           <UploadIcon />
           <span className="dz-text">{file ? file.name : 'Click to upload or drag & drop'}</span>
-          <span className="dz-hint">PDF · DOCX · MD · TXT · HTML</span>
+          <span className="dz-hint">PDF · DOCX · MD · TXT · IMG (PNG/JPG) · URL</span>
           <input
             type="file"
-            accept=".pdf,.docx,.md,.txt,.html"
+            accept=".pdf,.docx,.md,.txt,.html,.png,.jpg,.jpeg,.webp"
             style={{ display: 'none' }}
             onChange={e => { setFile(e.target.files?.[0] || null); setUrl(''); }}
           />

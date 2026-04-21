@@ -1,6 +1,7 @@
 from django.urls import path, re_path
 from . import views
 from . import git_server
+from . import export_views
 
 urlpatterns = [
     path("ingest", views.ingest_file, name="ingest"),
@@ -26,7 +27,15 @@ urlpatterns = [
     # The Git Hub (Built-in Git Server)
     re_path(r"^git/(?P<repo_name>[^/]+)/", git_server.git_hub_view, name="git-hub"),
     
-    # --- Bulk Categorization ---
+    # --- Phase 5: Automated Synthesis ---
+    path("suggestions", views.get_suggestions, name="suggestions"),
+    path("synthesize_hub", views.synthesize_hub, name="synthesize-hub"),
     path("reorganize_categories", views.reorganize_categories, name="reorganize-categories"),
     path("apply_categories", views.apply_categories, name="apply-categories"),
+    
+    # --- Phase 7: Archival & Export ---
+    path("export_page", export_views.export_page, name="export_page"),
+    path("export_all", export_views.export_all, name="export_all"),
+    path("create_snapshot", views.create_snapshot, name="create_snapshot"),
+    path("list_snapshots", views.list_snapshots, name="list_snapshots"),
 ]

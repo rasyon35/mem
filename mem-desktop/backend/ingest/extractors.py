@@ -4,6 +4,8 @@ from pathlib import Path
 import requests
 from bs4 import BeautifulSoup
 from html2text import HTML2Text
+from PIL import Image
+import pytesseract
 from PyPDF2 import PdfReader
 import pdfplumber  # better for complex PDFs
 from docx import Document
@@ -66,6 +68,19 @@ class TextExtractor:
             return text.strip()
 
     @staticmethod
+    def from_image(file_path):
+        """Extract text from images using Tesseract OCR"""
+        try:
+            img = Image.open(file_path)
+            # Basic preprocessing could be added here
+            text = pytesseract.image_to_string(img)
+            return text.strip()
+        except Exception as e:
+            if "tesseract is not installed" in str(e).lower() or "no such file" in str(e).lower():
+                 return "[OCR Error] Tesseract-OCR is not installed on the system. Please install it to index images."
+            return f"[OCR Error] Could not process image: {e}"
+
+    @staticmethod
     def from_url(url):
         response = requests.get(url, timeout=10)
         response.raise_for_status()
@@ -101,5 +116,7 @@ class TextExtractor:
             return TextExtractor.from_txt(path), 'text'
         elif suffix in ['.html', '.htm']:
             return TextExtractor.from_html(path), 'html'
+        elif suffix in ['.png', '.jpg', '.jpeg', '.webp', '.tiff', '.bmp']:
+            return TextExtractor.from_image(path), 'image'
         else:
             raise ValueError(f"Unsupported file type: {suffix}")

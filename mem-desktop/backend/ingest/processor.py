@@ -6,6 +6,7 @@ from django.conf import settings
 from .extractors import TextExtractor
 from .groq_client import groq_client
 from .wiki_context import wiki_context
+from .semantic_index import semantic_index
 from .models import Source, Contradiction, CriticalPage
 
 
@@ -69,6 +70,7 @@ class IngestProcessor:
             source_name=file_path.name,
             existing_wiki_context=existing_context,
             existing_categories=existing_categories_str,
+            source_type=file_type,
         )
 
         if "error" in llm_result and not llm_result.get("new_pages"):
@@ -146,11 +148,15 @@ class IngestProcessor:
             file_path = self.wiki_dir / f"{slug}.md"
 
             page_category = page.get("category", "Miscellaneous")
+            # Handle multiple sources if provided
+            sources_list = page.get("sources", [staged_changes.get("source", "unknown")])
+            sources_str = ", ".join(sources_list)
+            
             frontmatter = (
                 f"---\n"
                 f"title: {title}\n"
                 f"created: {datetime.now().isoformat()}\n"
-                f"sources: [{staged_changes.get('source', 'unknown')}]\n"
+                f"sources: [{sources_str}]\n"
                 f"type: concept\n"
                 f"category: {page_category}\n"
                 f"---\n\n"
@@ -259,7 +265,14 @@ class IngestProcessor:
         return []
 
     def _rebuild_index(self):
-        """Regenerate index.md from all wiki pages"""
+        """Regenerate index.md and update semantic embeddings"""
+        # 1. Update semantic vector index
+        try:
+            semantic_index.index_all()
+        except Exception as e:
+            print(f"Semantic indexing failed: {e}")
+
+        # 2. Rebuild index.md (legacy keyword index)
         index = "# Wiki Index\n\n"
         cats: dict[str, list[str]] = {
             "entity": [],
