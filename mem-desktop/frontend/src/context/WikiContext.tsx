@@ -44,7 +44,7 @@ interface WikiContextType {
 
   // Wiki
   wikiPages: WikiPage[];
-  selectedPage: { title: string; content: string } | null; setSelectedPage: (p: { title: string; content: string } | null) => void;
+  selectedPage: { title: string; content: string; category?: string; provenance?: any[] } | null; setSelectedPage: (p: { title: string; content: string; category?: string; provenance?: any[] } | null) => void;
   fetchWikiPages: () => Promise<void>;
   openPage: (title: string) => Promise<void>;
 
@@ -53,10 +53,15 @@ interface WikiContextType {
   fetchHistory: (pageTitle?: string) => Promise<void>;
   handleRevert: (hash: string) => Promise<void>;
 
-  // Settings
+  // Settings & Governance
   contradictions: any[];
   fetchContradictions: () => Promise<void>;
   resolveContradiction: (id: number, action: 'accept' | 'dismiss') => Promise<void>;
+  
+  pullRequests: any[];
+  fetchPullRequests: () => Promise<void>;
+  approvePullRequest: (branchName: string) => Promise<void>;
+
   criticalPages: any[];
   newCritical: string; setNewCritical: (s: string) => void;
   addCritical: () => Promise<void>;
@@ -108,8 +113,9 @@ export const WikiProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const chatEndRef = useRef<HTMLDivElement>(null);
 
   const [wikiPages, setWikiPages] = useState<WikiPage[]>([]);
-  const [selectedPage, setSelectedPage] = useState<{ title: string; content: string } | null>(null);
+  const [selectedPage, setSelectedPage] = useState<{ title: string; content: string; category?: string; provenance?: any[] } | null>(null);
   const [gitHistory, setGitHistory] = useState<any[]>([]);
+  const [pullRequests, setPullRequests] = useState<any[]>([]);
   const [contradictions, setContradictions] = useState<any[]>([]);
   const [criticalPages, setCriticalPages] = useState<any[]>([]);
   const [newCritical, setNewCritical] = useState('');
@@ -228,6 +234,22 @@ export const WikiProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const res = await axios.get(url);
       setGitHistory(res.data.commits || []);
     } catch { /* ignore */ }
+  };
+
+  const fetchPullRequests = async () => {
+    try {
+      const res = await axios.get(`${API}/pull_requests`);
+      setPullRequests(res.data.pull_requests || []);
+    } catch { /* ignore */ }
+  };
+
+  const approvePullRequest = async (branchName: string) => {
+    try {
+      // Create a mock staged_changes with the branch_name to pass to the approve endpoint
+      await axios.post(`${API}/approve`, { changes: { branch_name: branchName } });
+      await fetchPullRequests();
+      await fetchHistory();
+    } catch { alert('Failed to merge pull request'); }
   };
 
   const handleRevert = async (hash: string) => {
@@ -401,6 +423,7 @@ export const WikiProvider: React.FC<{ children: React.ReactNode }> = ({ children
       question, setQuestion, chatLog, chatLoading, chatEndRef, handleChat,
       wikiPages, selectedPage, setSelectedPage, fetchWikiPages, openPage,
       gitHistory, fetchHistory, handleRevert,
+      pullRequests, fetchPullRequests, approvePullRequest,
       contradictions, fetchContradictions, resolveContradiction, criticalPages, newCritical, setNewCritical, addCritical, removeCritical,
       syncStatus, team, hubMode, setHubMode, remoteUrl, setRemoteUrl, conflicts, handleSync, fetchConflicts,
       modalDiff, setModalDiff, mergeModalOpen, setMergeModalOpen,

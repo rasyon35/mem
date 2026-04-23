@@ -113,6 +113,24 @@ class IngestProcessor:
             "timestamp": datetime.now().isoformat(),
         }
 
+        # ---------------------------------------------------------
+        # NEW WORKFLOW: Create branch -> write -> commit -> back to main
+        # ---------------------------------------------------------
+        branch_name = f"ingest/ai-{int(datetime.now().timestamp())}"
+        staged["branch_name"] = branch_name
+        
+        # Switch to branch
+        subprocess.run(["git", "checkout", "-b", branch_name], cwd=self.wiki_dir, capture_output=True)
+        
+        # Write files for the PR
+        self._write_files_for_staged(staged)
+        
+        # Selective commit on branch
+        self._git_commit(f"AI ingest: {file_path.name}")
+        
+        # Return to main (working directory stays clean)
+        subprocess.run(["git", "checkout", "main"], cwd=self.wiki_dir, capture_output=True)
+
         # 7. Auto-apply if requested and no critical pages touched
         if auto_approve and not touches_critical:
             return self.apply_changes(staged)
@@ -126,29 +144,18 @@ class IngestProcessor:
                 "new_pages": [p["title"] for p in staged["new_pages"]],
                 "updated_pages": [p["title"] for p in staged["updated_pages"]],
                 "contradictions": len(staged["contradictions"]),
+                "branch": branch_name
             },
         }
 
-    def apply_changes(self, staged_changes, user_email=None):
-        """Write staged changes to the wiki directory and commit to git."""
-        email = user_email or self._get_user_email()
-        role = self._get_user_role(email)
-
-        if role not in ("admin", "editor"):
-            # Contributors might be allowed if approved by an admin
-            # For now, let's strictly require admin/editor to apply
-            return {"error": f"Role '{role}' is not authorized to apply changes"}
-
-        changes_made = []
-
-        # --- Create new pages ---
+    def _write_files_for_staged(self, staged_changes):
+        """Helper to write markdown files based on staged changes (used on branch)"""
         for page in staged_changes.get("new_pages", []):
             title = page["title"]
             slug = title.replace(" ", "_")
             file_path = self.wiki_dir / f"{slug}.md"
 
             page_category = page.get("category", "Miscellaneous")
-            # Handle multiple sources if provided
             sources_list = page.get("sources", [staged_changes.get("source", "unknown")])
             sources_str = ", ".join(sources_list)
             
@@ -162,23 +169,19 @@ class IngestProcessor:
                 f"---\n\n"
             )
             file_path.write_text(frontmatter + page["content"], encoding="utf-8")
-            changes_made.append(f"Created: {title}")
 
-        # --- Update existing pages ---
         for page in staged_changes.get("updated_pages", []):
             title = page["title"]
             slug = title.replace(" ", "_")
             file_path = self.wiki_dir / f"{slug}.md"
             page_category = page.get("category", "")
 
-            # Preserve existing frontmatter
             if file_path.exists():
                 existing = file_path.read_text(encoding="utf-8")
                 if existing.startswith("---"):
                     parts = existing.split("---", 2)
                     if len(parts) >= 3:
                         fm_block = parts[1]
-                        # Inject or update category in existing frontmatter
                         if page_category:
                             import re as _re
                             if _re.search(r"^category:", fm_block, _re.MULTILINE):
@@ -187,25 +190,56 @@ class IngestProcessor:
                                 fm_block = fm_block.rstrip("\n") + f"\ncategory: {page_category}\n"
                         new_content = f"---{fm_block}---\n\n{page['content']}"
                         file_path.write_text(new_content, encoding="utf-8")
-                        changes_made.append(f"Updated: {title}")
                         continue
 
-            # No frontmatter or new file
             file_path.write_text(page["content"], encoding="utf-8")
-            changes_made.append(f"Updated: {title}")
-
-        # --- Rebuild index + append to log ---
-        self._rebuild_index()
-        changes_made.append("Rebuilt: index.md")
-
+            
+        # Rebuild text index and log on the branch as well so they are part of the PR
+        self._rebuild_text_index()
         self._append_to_log(staged_changes)
-        changes_made.append("Logged: log.md")
 
-        # --- Git commit ---
-        self._git_commit(f"ingest: {staged_changes.get('source', 'unknown source')}")
+    def apply_changes(self, staged_changes, user_email=None):
+        """Merge the staged branch into main."""
+        email = user_email or self._get_user_email()
+        role = self._get_user_role(email)
 
-        # --- Save contradictions to DB ---
+        if role not in ("admin", "editor"):
+            return {"error": f"Role '{role}' is not authorized to merge changes"}
+
+        branch_name = staged_changes.get("branch_name")
+        changes_made = []
+
+        if branch_name:
+            # Execute Git Merge
+            subprocess.run(["git", "checkout", "main"], cwd=self.wiki_dir, capture_output=True)
+            result = subprocess.run(
+                ["git", "merge", branch_name, "--no-ff", "-m", f"Approved PR: {branch_name}"],
+                cwd=self.wiki_dir,
+                capture_output=True,
+                text=True
+            )
+            if result.returncode == 0:
+                changes_made.append(f"Merged branch {branch_name} into main")
+                # Optional: delete the branch after successful merge
+                subprocess.run(["git", "branch", "-d", branch_name], cwd=self.wiki_dir, capture_output=True)
+            else:
+                return {"error": f"Merge failed. Conflict? {result.stderr}"}
+        else:
+            # Fallback for old staged data without a branch
+            self._write_files_for_staged(staged_changes)
+            self._git_commit(f"ingest: {staged_changes.get('source', 'unknown')}")
+            changes_made.append("Applied changes directly to main (legacy)")
+
+        # Rebuild ChromaDB Semantic Index now that we are on main
+        try:
+            semantic_index.index_all()
+            changes_made.append("Rebuilt Semantic Index")
+        except Exception as e:
+            print(f"Semantic indexing failed: {e}")
+
+        # Store contradictions and provenance
         self._store_contradictions(staged_changes)
+        self._store_provenance(staged_changes)
 
         return {
             "status": "applied",
@@ -264,17 +298,10 @@ class IngestProcessor:
                 pass
         return []
 
-    def _rebuild_index(self):
-        """Regenerate index.md and update semantic embeddings"""
-        # 1. Update semantic vector index
-        try:
-            semantic_index.index_all()
-        except Exception as e:
-            print(f"Semantic indexing failed: {e}")
-
-        # 2. Rebuild index.md (legacy keyword index)
+    def _rebuild_text_index(self):
+        """Regenerate index.md (legacy keyword index)"""
         index = "# Wiki Index\n\n"
-        cats: dict[str, list[str]] = {
+        cats = {
             "entity": [],
             "concept": [],
             "summary": [],
@@ -292,7 +319,6 @@ class IngestProcessor:
                     page_type = t
                     break
 
-            # Pull first meaningful heading as description
             description = ""
             for line in content.splitlines():
                 if line.startswith("# ") and len(line) > 2:
@@ -334,7 +360,7 @@ class IngestProcessor:
         """Initialize a git repo in wiki_dir if one doesn't exist"""
         git_dir = self.wiki_dir / ".git"
         if not git_dir.exists():
-            subprocess.run(["git", "init"], cwd=self.wiki_dir, capture_output=True)
+            subprocess.run(["git", "init", "-b", "main"], cwd=self.wiki_dir, capture_output=True)
             subprocess.run(
                 ["git", "config", "user.email", "mem@local"],
                 cwd=self.wiki_dir,
@@ -345,11 +371,20 @@ class IngestProcessor:
                 cwd=self.wiki_dir,
                 capture_output=True,
             )
+            # Create an initial commit so we can branch off main immediately
+            (self.wiki_dir / "index.md").write_text("# Initial Commit\n", encoding="utf-8")
+            subprocess.run(["git", "add", "index.md"], cwd=self.wiki_dir, capture_output=True)
+            subprocess.run(["git", "commit", "-m", "Initial commit"], cwd=self.wiki_dir, capture_output=True)
 
     def _git_commit(self, message):
-        """Stage all changes and commit"""
+        """Stage specific files and commit"""
         try:
-            subprocess.run(["git", "add", "."], cwd=self.wiki_dir, capture_output=True)
+            # Gather all md files instead of adding everything
+            md_files = [f.name for f in self.wiki_dir.glob("*.md")]
+            if md_files:
+                # Selective commit!
+                subprocess.run(["git", "add"] + md_files, cwd=self.wiki_dir, capture_output=True)
+
             result = subprocess.run(
                 ["git", "commit", "-m", message],
                 cwd=self.wiki_dir,
@@ -381,6 +416,34 @@ class IngestProcessor:
         except Exception as e:
             print(f"Error storing contradictions: {e}")
 
+
+    def _store_provenance(self, staged_changes):
+        """Store chunk-level provenance linking pages to their sources"""
+        source_id = staged_changes.get("source_id")
+        if not source_id:
+            return
+
+        from .models import Source, PageSource
+        try:
+            source = Source.objects.get(id=source_id)
+            
+            # Combine new and updated pages to process them all
+            all_pages = staged_changes.get("new_pages", []) + staged_changes.get("updated_pages", [])
+            
+            for page in all_pages:
+                chunk_text = page.get("source_chunk")
+                page_reference = page.get("source_reference")
+                
+                # Only save if we actually have provenance details
+                if chunk_text or page_reference:
+                    PageSource.objects.create(
+                        page_title=page.get("title", "unknown"),
+                        source=source,
+                        page_reference=page_reference or "",
+                        chunk_text=chunk_text or "",
+                    )
+        except Exception as e:
+            print(f"Error storing provenance: {e}")
 
 # Singleton
 ingest_processor = IngestProcessor()

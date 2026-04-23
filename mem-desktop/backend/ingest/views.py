@@ -13,7 +13,7 @@ from .extractors import TextExtractor
 from .processor import ingest_processor
 from .wiki_context import wiki_context
 from .groq_client import groq_client
-from .models import Source, Contradiction, CriticalPage
+from .models import Source, Contradiction, CriticalPage, PageSource
 
 
 # ---------------------------------------------------------------------------
@@ -198,16 +198,75 @@ def list_wiki_pages(request):
 
 @api_view(["GET"])
 def get_wiki_page(request, title):
-    """Return the full markdown content of a single wiki page"""
+    """Return the full markdown content of a single wiki page with provenance metadata."""
     wiki_dir = Path(settings.BASE_DIR).parent / "workspace" / "wiki"
-    slug = title.replace(" ", "_")
-    path = wiki_dir / f"{slug}.md"
+    
+    # Handle both raw titles and slugs
+    safe_slug = title.replace(" ", "_")
+    file_path = wiki_dir / f"{safe_slug}.md"
+    
+    # If not found by slug, try to search the files directly
+    if not file_path.exists():
+        found = False
+        for md_file in wiki_dir.glob("*.md"):
+            if title.lower() in md_file.stem.lower().replace("_", " "):
+                file_path = md_file
+                found = True
+                break
+        if not found:
+            return Response({"error": "Page not found"}, status=status.HTTP_404_NOT_FOUND)
 
-    if not path.exists():
-        return Response({"error": "Page not found"}, status=status.HTTP_404_NOT_FOUND)
+    content = file_path.read_text(encoding="utf-8")
+    
+    # Extract metadata from frontmatter if it exists
+    metadata = {}
+    main_content = content
+    if content.startswith("---"):
+        parts = content.split("---", 2)
+        if len(parts) >= 3:
+            fm = parts[1]
+            main_content = parts[2].strip()
+            
+            # Parse frontmatter fields
+            title_match = re.search(r"^title:\s*(.+)$", fm, re.MULTILINE)
+            if title_match: metadata["title"] = title_match.group(1).strip()
+            
+            cat_match = re.search(r"^category:\s*(.+)$", fm, re.MULTILINE)
+            if cat_match: metadata["category"] = cat_match.group(1).strip()
+            
+            type_match = re.search(r"^type:\s*(.+)$", fm, re.MULTILINE)
+            if type_match: metadata["type"] = type_match.group(1).strip()
+            
+            sources_match = re.search(r"^sources:\s*\[(.*?)\]", fm, re.MULTILINE | re.DOTALL)
+            if sources_match:
+                srcs = [s.strip().strip("'").strip('"') for s in sources_match.group(1).split(',')]
+                metadata["sources_list"] = [s for s in srcs if s]
 
-    content = path.read_text(encoding="utf-8")
-    return Response({"title": title, "content": content}, status=status.HTTP_200_OK)
+    actual_title = metadata.get("title", file_path.stem.replace("_", " "))
+    
+    # Query Database for Provenance
+    provenance = []
+    try:
+        page_sources = PageSource.objects.filter(page_title__iexact=actual_title).select_related('source').order_by('-created_at')
+        for ps in page_sources:
+            provenance.append({
+                "source_name": ps.source.name,
+                "source_type": ps.source.source_type,
+                "page_reference": ps.page_reference,
+                "chunk_text": ps.chunk_text,
+                "timestamp": ps.created_at.isoformat()
+            })
+    except Exception as e:
+        print(f"Error fetching provenance: {e}")
+
+    return Response({
+        "title": actual_title,
+        "content": main_content,
+        "category": metadata.get("category", "Miscellaneous"),
+        "type": metadata.get("type", "concept"),
+        "frontmatter_sources": metadata.get("sources_list", []),
+        "provenance": provenance
+    }, status=status.HTTP_200_OK)
 
 
 # ---------------------------------------------------------------------------
@@ -283,6 +342,66 @@ def get_git_history(request):
         return Response({"error": f"Failed to retrieve history: {e}"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
+@api_view(["GET"])
+def list_pull_requests(request):
+    """List all unmerged ingest branches"""
+    wiki_dir = Path(settings.BASE_DIR).parent / "workspace" / "wiki"
+    try:
+        repo = Repo(wiki_dir)
+        prs = []
+        for head in repo.heads:
+            if head.name.startswith("ingest/"):
+                commit = head.commit
+                prs.append({
+                    "branch": head.name,
+                    "message": commit.message,
+                    "author": commit.author.name,
+                    "timestamp": commit.authored_datetime.isoformat(),
+                    "hash": commit.hexsha[:7]
+                })
+        # Sort newest first
+        prs.sort(key=lambda x: x["timestamp"], reverse=True)
+        return Response({"pull_requests": prs}, status=status.HTTP_200_OK)
+    except Exception as e:
+        return Response({"error": f"Failed to list PRs: {e}"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+@api_view(["GET"])
+def get_pull_request_diff(request):
+    """Get the diff between an ingest branch and main"""
+    branch = request.query_params.get("branch")
+    wiki_dir = Path(settings.BASE_DIR).parent / "workspace" / "wiki"
+    if not branch:
+        return Response({"error": "No branch provided"}, status=400)
+        
+    try:
+        repo = Repo(wiki_dir)
+        base = repo.heads.main.commit
+        head = repo.heads[branch].commit
+        
+        diff_index = base.diff(head, create_patch=True)
+        changes = []
+        
+        for diff in diff_index:
+            file_name = diff.b_path or diff.a_path
+            # Provide raw text of the patch
+            patch = diff.diff.decode('utf-8') if diff.diff else ""
+            
+            changes.append({
+                "file": file_name,
+                "type": diff.change_type, # 'A' add, 'M' modify, 'D' delete
+                "patch": patch
+            })
+            
+        return Response({
+            "branch": branch,
+            "message": head.message,
+            "changes": changes
+        }, status=status.HTTP_200_OK)
+    except Exception as e:
+        return Response({"error": f"Failed to get diff: {e}"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
 @api_view(["POST"])
 def revert_version(request):
     """Revert the wiki to a specific commit hash"""
@@ -295,11 +414,13 @@ def revert_version(request):
         repo = Repo(wiki_dir)
         # We do a revert by checking out the files and then committing that state
         repo.git.checkout(commit_hash, ".")
-        repo.index.add(["."])
+        repo.git.add("*.md")
         repo.index.commit(f"revert to {commit_hash[:7]}")
 
         # Trigger an index rebuild after revert
-        ingest_processor._rebuild_index()
+        ingest_processor._rebuild_text_index()
+        from .semantic_index import semantic_index
+        semantic_index.index_all()
 
         return Response({"status": "reverted", "message": f"Wiki reverted to {commit_hash[:7]}"}, status=status.HTTP_200_OK)
     except Exception as e:

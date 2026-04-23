@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { useWiki } from '@/context/WikiContext';
 import { UploadIcon, Spinner } from '@/components/Icons';
+import { motion, AnimatePresence } from 'framer-motion';
 
 export default function IngestPage() {
   const { 
@@ -48,7 +49,7 @@ export default function IngestPage() {
       </header>
 
       <div className="card">
-        <label className="dropzone">
+        <label className="dropzone relative overflow-hidden group">
           <UploadIcon />
           <span className="dz-text">{file ? file.name : 'Click to upload or drag & drop'}</span>
           <span className="dz-hint">PDF · DOCX · MD · TXT · IMG (PNG/JPG) · URL</span>
@@ -58,6 +59,14 @@ export default function IngestPage() {
             style={{ display: 'none' }}
             onChange={e => { setFile(e.target.files?.[0] || null); setUrl(''); }}
           />
+          
+          {loading && (
+            <motion.div 
+              className="absolute top-0 left-0 right-0 h-1 bg-accent shadow-[0_0_15px_var(--accent)] z-10"
+              animate={{ top: ['0%', '100%', '0%'] }}
+              transition={{ duration: 2, repeat: Infinity, ease: 'linear' }}
+            />
+          )}
         </label>
 
         <div className="divider"><span>or</span></div>

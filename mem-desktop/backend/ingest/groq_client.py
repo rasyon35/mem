@@ -131,7 +131,9 @@ You must return ONLY valid JSON, no other text. The JSON must follow this struct
     {
       "title": "Page title (use Title Case with spaces)",
       "content": "Full markdown content of the new page. Use headings, lists, links to other pages as [[Page Name]].",
-      "category": "Semantic domain/subject area (e.g. Operating Systems, Finance, AGI & Cognitive)"
+      "category": "Semantic domain/subject area (e.g. Operating Systems, Finance, AGI & Cognitive)",
+      "source_reference": "Page number or section name in source",
+      "source_chunk": "The exact original text from the source that inspired this page"
     }
   ],
   "updated_pages": [
@@ -139,7 +141,9 @@ You must return ONLY valid JSON, no other text. The JSON must follow this struct
       "title": "Existing page title to update",
       "content": "The COMPLETE new content for this page (replace entirely, not a diff)",
       "changes_summary": "Brief description of what changed",
-      "category": "Semantic domain/subject area"
+      "category": "Semantic domain/subject area",
+      "source_reference": "Page number or section name in source",
+      "source_chunk": "The exact original text from the source that inspired this update"
     }
   ],
   "contradictions": [
