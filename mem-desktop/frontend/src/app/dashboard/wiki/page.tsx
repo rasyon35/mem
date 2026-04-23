@@ -3,7 +3,8 @@
 import { useEffect, useMemo, useState, useRef, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { useWiki } from '@/context/WikiContext';
-import { WikiIcon, TimelineIcon, ChatIcon, Spinner } from '@/components/Icons';
+import { WikiIcon, TimelineIcon, ChatIcon, SourceIcon, Spinner } from '@/components/Icons';
+import { motion, AnimatePresence } from 'framer-motion';
 import Link from 'next/link';
 import axios from 'axios';
 
@@ -101,9 +102,11 @@ function WikiContent() {
 
   return (
     <section className="panel wiki-panel" id="panel-wiki">
-      <div className="wiki-list-col">
-        <h1 className="panel-title">Wiki</h1>
-        <button className="btn-ghost" style={{ marginBottom: '1rem' }} onClick={fetchWikiPages}>↻ Refresh</button>
+      <div className="wiki-list-col bg-white/[0.02] border-r border-white/5 p-8 overflow-y-auto">
+        <div className="flex items-center justify-between mb-8">
+           <h1 className="text-sm font-black text-muted uppercase tracking-[0.2em]">Knowledge Base</h1>
+           <button className="btn-ghost !py-1 !px-3 text-[10px] font-black uppercase tracking-widest" onClick={fetchWikiPages}>Refresh</button>
+        </div>
         {wikiPages.length === 0 ? (
           <p className="panel-sub">No pages yet. Ingest your first source!</p>
         ) : (
@@ -156,7 +159,13 @@ function WikiContent() {
             <p>Select a page to read</p>
           </div>
         ) : (
-          <>
+          <motion.div 
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            key={selectedPage.title}
+            transition={{ duration: 0.4, ease: [0.175, 0.885, 0.32, 1.275] }}
+            className="w-full"
+          >
             {/* Lock Banner */}
             {locks.find((l: any) => l.page === selectedPage.title) && (
               <div className={`p-4 rounded-2xl mb-4 flex items-center justify-between border ${
@@ -181,34 +190,91 @@ function WikiContent() {
               </div>
             )}
 
-            <div className="row-space-between mb-4">
-              <h2 className="wiki-content-title">{selectedPage.title.replace(/_/g, ' ')}</h2>
-              <div className="flex gap-2">
-                 {!locks.find((l: any) => l.page === selectedPage.title) && (
-                   <button className="btn-primary py-1 px-4 text-xs font-black" onClick={() => handleLock(selectedPage.title, 'Me')}>
-                     Edit & Lock
-                   </button>
-                 )}
-                 <Link href={`/dashboard/timeline?page=${encodeURIComponent(selectedPage.title.replace(/ /g, '_'))}`} className="btn-ghost" style={{ padding: '4px 12px', fontSize: '12px' }}>
-                   <TimelineIcon size={16} /> History
-                 </Link>
-                 <a 
-                   href={`${API}/export_page?page=${encodeURIComponent(selectedPage.title)}&format=pdf`}
-                   download
-                   className="btn-ghost" 
-                   style={{ padding: '4px 12px', fontSize: '12px', borderColor: 'rgba(108,99,255,0.4)', color: 'var(--accent)' }}
-                   title="Export page as PDF"
-                 >
-                   ↓ Export PDF
-                 </a>
-              </div>
+            <div className="flex flex-col gap-2 mb-8">
+               <div className="flex items-center justify-between">
+                  <h2 className="text-4xl font-black text-white tracking-tight font-outfit">
+                    {selectedPage.title.replace(/_/g, ' ')}
+                  </h2>
+                  <div className="flex gap-2">
+                     <Link href={`/dashboard/timeline?page=${encodeURIComponent(selectedPage.title.replace(/ /g, '_'))}`} className="btn-ghost !py-2 !px-4 text-[11px] font-black uppercase tracking-widest">
+                       History
+                     </Link>
+                     <a 
+                       href={`${API}/export_page?page=${encodeURIComponent(selectedPage.title)}&format=pdf`}
+                       download
+                       className="btn-primary !py-2 !px-4 text-[11px] font-black uppercase tracking-widest" 
+                     >
+                       Export PDF
+                     </a>
+                  </div>
+               </div>
+               <div className="flex items-center gap-3">
+                  <span className="tag tag-updated text-[10px] font-black uppercase tracking-widest">
+                    {selectedPage.category || 'General'}
+                  </span>
+                  {!locks.find((l: any) => l.page === selectedPage.title) && (
+                    <button className="text-[10px] font-black text-accent uppercase tracking-widest hover:underline" onClick={() => handleLock(selectedPage.title, 'Me')}>
+                      Lock for Editing
+                    </button>
+                  )}
+               </div>
             </div>
-            <pre className={`wiki-content-body ${locks.find((l: any) => l.page === selectedPage.title && l.owner !== 'Me') ? 'opacity-50 pointer-events-none' : ''}`}>
-              {selectedPage.content}
-            </pre>
+
+            <div className={`prose-editor ${locks.find((l: any) => l.page === selectedPage.title && l.owner !== 'Me') ? 'opacity-50 pointer-events-none' : ''}`}>
+               <pre className="text-base leading-relaxed text-secondary whitespace-pre-wrap font-inter">
+                 {selectedPage.content}
+               </pre>
+            </div>
+
+            {/* Knowledge Provenance Section */}
+            {selectedPage.provenance && selectedPage.provenance.length > 0 && (
+              <div className="mt-12 p-8 rounded-3xl bg-white/[0.02] border border-white/5">
+                <div className="flex items-center gap-3 mb-8">
+                   <div className="w-10 h-10 rounded-xl bg-accent/10 border border-accent/20 flex items-center justify-center text-accent">
+                      <SourceIcon size={20} />
+                   </div>
+                   <div>
+                      <h3 className="text-xl font-black text-white tracking-tight">Knowledge Provenance</h3>
+                      <p className="text-xs text-muted font-medium mt-0.5">Traceable source fragments that inspired this page</p>
+                   </div>
+                </div>
+
+                <div className="space-y-6">
+                  {selectedPage.provenance.map((prov, i) => (
+                    <div key={i} className="relative group">
+                      <div className="absolute -left-4 top-0 bottom-0 w-1 bg-accent/30 rounded-full opacity-0 group-hover:opacity-100 transition-opacity" />
+                      <div className="flex items-start justify-between mb-3">
+                         <div className="flex items-center gap-3">
+                            <span className="text-[10px] font-black uppercase tracking-widest text-accent bg-accent/10 px-2 py-1 rounded-md border border-accent/20">
+                               {prov.source_type}
+                            </span>
+                            <span className="text-sm font-bold text-white hover:text-accent transition-colors cursor-pointer">
+                               {prov.source_name}
+                            </span>
+                            {prov.page_reference && (
+                              <span className="text-[10px] font-black text-muted-dark uppercase tracking-wider border-l border-white/10 pl-3">
+                                Ref: {prov.page_reference}
+                              </span>
+                            )}
+                         </div>
+                         <span className="text-[9px] font-bold text-muted uppercase tracking-tighter">
+                            {new Date(prov.timestamp).toLocaleDateString()}
+                         </span>
+                      </div>
+                      
+                      <div className="p-5 rounded-2xl bg-white/[0.03] border border-white/5 group-hover:border-white/10 transition-all">
+                        <p className="text-sm text-secondary leading-relaxed italic">
+                          "{prov.chunk_text}"
+                        </p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
 
             {/* Suggested Relationships Panel */}
-            <div className="mt-12 p-8 rounded-3xl bg-white/3 border border-white/8">
+            <div className="mt-8 p-8 rounded-3xl bg-white/3 border border-white/8">
               <div className="flex items-center justify-between mb-6">
                 <div>
                   <h3 className="text-lg font-black text-white">Suggested Relationships</h3>
@@ -250,7 +316,7 @@ function WikiContent() {
                 </div>
               )}
             </div>
-          </>
+          </motion.div>
         )}
       </div>
 

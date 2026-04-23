@@ -1,137 +1,195 @@
 import os
-import json
-import numpy as np
+import time
 from pathlib import Path
 from django.conf import settings
 
 try:
     from sentence_transformers import SentenceTransformer
-    from sklearn.metrics.pairwise import cosine_similarity
+    import chromadb
 except ImportError:
     SentenceTransformer = None
-    cosine_similarity = None
+    chromadb = None
 
 
 class SemanticIndex:
-    """Handles vector embedding generation, storage, and search for wiki pages."""
+    """Handles vector embedding generation, storage, and search for wiki pages using ChromaDB."""
 
     def __init__(self):
         self.wiki_dir = Path(settings.BASE_DIR).parent / "workspace" / "wiki"
-        self.index_dir = Path(settings.BASE_DIR).parent / "workspace" / "_index"
+        self.index_dir = Path(settings.BASE_DIR).parent / "workspace" / "_chroma_index"
+        
         self.index_dir.mkdir(parents=True, exist_ok=True)
 
-        self.embeddings_path = self.index_dir / "embeddings.npy"
-        self.map_path = self.index_dir / "map.json"
-
-        # Model is loaded lazily to save memory during simple indexing tasks
-        self._model = None
         self.model_name = 'all-MiniLM-L6-v2'
+        self._model = None
+        self.query_cache = {}
 
-        # Cached index data
-        self.embeddings = None  # Numpy array
-        self.id_to_title = []   # List of titles corresponding to embedding rows
-
-        self.load_index()
+        if chromadb is not None:
+            self.db_client = chromadb.PersistentClient(path=str(self.index_dir))
+            # Create or get collection using cosine similarity
+            self.collection = self.db_client.get_or_create_collection(
+                name="wiki_knowledge",
+                metadata={"hnsw:space": "cosine"}
+            )
+        else:
+            self.db_client = None
+            self.collection = None
 
     @property
     def model(self):
         if self._model is None:
             if SentenceTransformer is None:
-                raise ImportError("sentence-transformers not installed. Run pip install sentence-transformers.")
+                raise ImportError("sentence-transformers not installed. Run pip install sentence-transformers chromadb.")
             print(f"Loading embedding model: {self.model_name}...")
             self._model = SentenceTransformer(self.model_name)
         return self._model
 
-    def load_index(self):
-        """Loads embeddings and mapping from disk."""
-        if self.embeddings_path.exists() and self.map_path.exists():
-            try:
-                self.embeddings = np.load(str(self.embeddings_path))
-                with open(self.map_path, 'r') as f:
-                    self.id_to_title = json.load(f)
-            except Exception as e:
-                print(f"Error loading semantic index: {e}")
-                self.embeddings = None
-                self.id_to_title = []
+    def _chunk_text(self, text, chunk_size=1000, overlap=200):
+        """Splits text into overlapping chunks."""
+        chunks = []
+        start = 0
+        text_len = len(text)
+        while start < text_len:
+            end = start + chunk_size
+            chunks.append(text[start:end])
+            if end >= text_len:
+                break
+            start += chunk_size - overlap
+        return chunks
 
-    def save_index(self):
-        """Saves current embeddings and mapping to disk."""
-        if self.embeddings is not None:
-            np.save(str(self.embeddings_path), self.embeddings)
-            with open(self.map_path, 'w') as f:
-                json.dump(self.id_to_title, f)
+    def _embed_and_store_page(self, md_file, title, mtime):
+        """Generates embeddings for chunks and stores them in ChromaDB."""
+        content = md_file.read_text(encoding="utf-8")
+        
+        # Remove frontmatter if present
+        main_text = content
+        if content.startswith("---"):
+            parts = content.split("---", 2)
+            if len(parts) >= 3:
+                main_text = parts[2]
+                
+        chunks = self._chunk_text(main_text)
+        if not chunks:
+            chunks = [""] # Empty page handling
+            
+        texts_to_embed = [f"Title: {title.replace('_', ' ')}\nContent: {chunk}" for chunk in chunks]
+        
+        # Generate embeddings as lists of floats
+        embeddings = self.model.encode(texts_to_embed, show_progress_bar=False).tolist()
+        
+        # Prepare data for ChromaDB
+        ids = [f"{title}_chunk_{i}" for i in range(len(chunks))]
+        metadatas = [{"title": title, "mtime": mtime, "model": self.model_name, "chunk_idx": i} for i in range(len(chunks))]
+        
+        # Remove any existing chunks for this title to avoid duplicates on update
+        self.collection.delete(where={"title": title})
+        
+        # Add new chunks
+        self.collection.add(
+            documents=chunks,
+            embeddings=embeddings,
+            metadatas=metadatas,
+            ids=ids
+        )
 
     def index_all(self, force=False):
         """
-        Scans all wiki markdown files and builds/updates the embedding index.
+        Incrementally builds or updates the ChromaDB index.
         """
-        if not self.wiki_dir.exists():
+        if not self.wiki_dir.exists() or self.collection is None:
             return False
 
         all_files = sorted(list(self.wiki_dir.glob("*.md")))
-        texts = []
-        titles = []
+        valid_titles = set()
 
         for md_file in all_files:
             if md_file.name in ("index.md", "log.md") or md_file.name.startswith("."):
                 continue
-
-            # We index the title + first 2000 chars of content
-            content = md_file.read_text(encoding="utf-8")
+                
             title = md_file.stem
+            valid_titles.add(title)
             
-            # Clean content slightly for better embeddings (remove frontmatter)
-            main_text = content
-            if content.startswith("---"):
-                parts = content.split("---", 2)
-                if len(parts) >= 3:
-                    main_text = parts[2]
+            mtime = os.path.getmtime(md_file)
             
-            # Indexing both title and content snippet helps for retrieval
-            texts.append(f"Title: {title.replace('_', ' ')}\nContent: {main_text[:2000]}")
-            titles.append(title)
+            needs_update = True
+            if not force:
+                # Check if we already have this title with the same timestamp
+                existing = self.collection.get(
+                    where={"title": title},
+                    limit=1,
+                    include=["metadatas"]
+                )
+                if existing and existing["metadatas"]:
+                    meta = existing["metadatas"][0]
+                    if meta.get("mtime") == mtime and meta.get("model") == self.model_name:
+                        needs_update = False
+                        
+            if needs_update:
+                print(f"Indexing page: {title} to ChromaDB...")
+                self._embed_and_store_page(md_file, title, mtime)
 
-        if not texts:
-            return False
-
-        print(f"Indexing {len(texts)} pages...")
-        new_embeddings = self.model.encode(texts, show_progress_bar=True)
-        
-        self.embeddings = np.array(new_embeddings)
-        self.id_to_title = titles
-        self.save_index()
+        # Cleanup deleted files
+        # Fetch all existing metadata titles
+        all_existing = self.collection.get(include=["metadatas"])
+        if all_existing and all_existing["metadatas"]:
+            existing_titles = set(meta["title"] for meta in all_existing["metadatas"])
+            for t in existing_titles:
+                if t not in valid_titles:
+                    print(f"Removing deleted page from ChromaDB index: {t}")
+                    self.collection.delete(where={"title": t})
+            
         return True
 
     def search(self, query, top_k=5):
         """
-        Performs semantic search for a query string.
-        Returns a list of (title, score) tuples.
+        Performs semantic search using ChromaDB.
+        Returns a list of (title, score) tuples (deduplicated by title).
         """
-        if self.embeddings is None or not self.id_to_title:
+        if self.collection is None:
             return []
 
-        if cosine_similarity is None:
-            return []
+        # Cache query embeddings for speed
+        if query in self.query_cache:
+            query_vec = self.query_cache[query]
+        else:
+            query_vec = self.model.encode([query]).tolist()[0]
+            self.query_cache[query] = query_vec
+            if len(self.query_cache) > 1000:
+                self.query_cache.pop(next(iter(self.query_cache)))
 
-        # Encode query
-        query_vec = self.model.encode([query])
+        # Query ChromaDB (returns distances, for cosine space it's 1 - cosine_similarity)
+        results = self.collection.query(
+            query_embeddings=[query_vec],
+            n_results=top_k * 3, # Fetch extra to account for deduplication
+            include=["metadatas", "distances"]
+        )
         
-        # Calculate similarity
-        # embeddings: [N, D], query_vec: [1, D]
-        # result: [1, N]
-        sims = cosine_similarity(query_vec, self.embeddings)[0]
+        if not results["metadatas"] or not results["metadatas"][0]:
+            return []
+            
+        metadatas = results["metadatas"][0]
+        distances = results["distances"][0]
         
-        # Get top K indices
-        top_indices = sims.argsort()[-top_k:][::-1]
+        final_results = []
+        seen_titles = set()
         
-        results = []
-        for idx in top_indices:
-            score = float(sims[idx])
-            if score > 0.3: # Minimum threshold to avoid noise
-                results.append((self.id_to_title[idx], score))
-        
-        return results
+        for meta, dist in zip(metadatas, distances):
+            score = 1.0 - dist # Convert distance back to similarity score
+            
+            if score < 0.3: # Minimum threshold
+                break
+                
+            title = meta["title"]
+            if title not in seen_titles:
+                final_results.append((title, score))
+                seen_titles.add(title)
+                
+            if len(final_results) >= top_k:
+                break
+                
+        return final_results
 
 
 # Singleton instance
 semantic_index = SemanticIndex()
+

@@ -6,14 +6,17 @@
 /* ── Sidebar ── */
 .sidebar {
   width: var(--sidebar-w);
-  background: var(--bg-800);
-  border-right: 1px solid var(--border);
+  background: var(--glass-heavy-bg);
+  backdrop-filter: var(--glass-blur);
+  border: 1px solid var(--glass-border);
   display: flex;
   flex-direction: column;
-  padding: 2.5rem 1.25rem;
+  padding: 2rem 1.25rem;
   position: fixed;
-  top: 0; left: 0; bottom: 0;
+  top: 1rem; left: 1rem; bottom: 1rem;
+  border-radius: var(--radius-lg);
   z-index: 20;
+  box-shadow: 0 4px 32px rgba(0,0,0,0.5);
 }
 
 .logo {
@@ -50,28 +53,30 @@
   display: flex;
   align-items: center;
   gap: 0.85rem;
-  padding: 0.85rem 1rem;
-  border-radius: var(--radius-sm);
-  border: none;
+  padding: 0.8rem 1rem;
+  border-radius: var(--radius-md);
+  border: 1px solid transparent;
   background: transparent;
   color: var(--text-secondary);
-  font-size: 0.95rem;
-  font-weight: 500;
+  font-size: 0.9rem;
+  font-weight: 600;
   cursor: pointer;
-  transition: all var(--t);
+  transition: all var(--t-fast);
   text-align: left;
   width: 100%;
 }
 
 .nav-btn:hover {
-  background: var(--bg-600);
+  background: hsla(0, 0%, 100%, 0.04);
   color: var(--text-primary);
+  transform: translateX(4px);
 }
 
 .nav-btn.active {
-  background: linear-gradient(135deg, rgba(108,99,255,0.25), rgba(108,99,255,0.12));
+  background: var(--accent-glow);
   color: var(--accent-light);
-  border: 1px solid rgba(108,99,255,0.3);
+  border: 1px solid hsla(var(--accent-h), 100%, 69%, 0.2);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.1);
 }
 
 .nav-btn svg { flex-shrink: 0; }
@@ -129,10 +134,10 @@
 
 /* ── Main ── */
 .main {
-  margin-left: var(--sidebar-w);
+  margin-left: calc(var(--sidebar-w) + 1rem);
   flex: 1;
   min-height: 100vh;
-  width: calc(100% - var(--sidebar-w));
+  width: calc(100% - (var(--sidebar-w) + 1rem));
   transition: margin-left var(--t);
   position: relative;
 }

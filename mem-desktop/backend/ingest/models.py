@@ -33,3 +33,13 @@ class CriticalPage(models.Model):
 
     def __str__(self):
         return self.title
+
+class PageSource(models.Model):
+    page_title = models.CharField(max_length=255)
+    source = models.ForeignKey(Source, on_delete=models.CASCADE, related_name="page_sources")
+    page_reference = models.CharField(max_length=255, blank=True)
+    chunk_text = models.TextField(blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"{self.page_title} -> {self.source.name}"

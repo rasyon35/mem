@@ -17,3 +17,5 @@ python-dotenv
 sentence-transformers
 numpy
 scikit-learn
+chromadb
+xhtml2pdf
