@@ -29,12 +29,17 @@ urlpatterns = [
     # The Git Hub (Built-in Git Server)
     re_path(r"^git/(?P<repo_name>[^/]+)/", git_server.git_hub_view, name="git-hub"),
     
-    # --- Phase 5: Automated Synthesis ---
+    # --- Phase 5: Automated Synthesis & OpenClaw ---
     path("suggestions", views.get_suggestions, name="suggestions"),
     path("synthesize_hub", views.synthesize_hub, name="synthesize-hub"),
     path("reorganize_categories", views.reorganize_categories, name="reorganize-categories"),
     path("apply_categories", views.apply_categories, name="apply-categories"),
     
+    # OpenClaw (The Intelligence Brain)
+    path("openclaw/proposals", views.list_openclaw_proposals, name="openclaw-proposals"),
+    path("openclaw/handle", views.handle_openclaw_proposal, name="openclaw-handle"),
+    path("openclaw/evolve", views.trigger_evolution, name="openclaw-evolve"),
+
     # --- Phase 7: Archival & Export ---
     path("export_page", export_views.export_page, name="export_page"),
     path("export_all", export_views.export_all, name="export_all"),

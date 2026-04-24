@@ -47,8 +47,9 @@ export default function Sidebar({ isCollapsed, onToggle }: SidebarProps) {
     { key: 'Insights', items: [
       { title: 'Graph', path: '/dashboard/graph', icon: <GraphIcon /> },
       { title: 'Timeline', path: '/dashboard/timeline', icon: <TimelineIcon /> },
+      { title: 'Evolution', path: '/dashboard/evolution', icon: <SynthesisIcon /> },
       { title: 'Conflicts', path: '/dashboard/contradictions', icon: <ConflictIcon />, badge: contradictions?.length },
-      { title: 'Organize', path: '/dashboard/organize', icon: <SynthesisIcon /> },
+      { title: 'Categories', path: '/dashboard/organize', icon: <SynthesisIcon /> },
     ]},
     { key: 'Team', items: [
       { title: 'Collab', path: '/dashboard/collab', icon: <CollabIcon /> },

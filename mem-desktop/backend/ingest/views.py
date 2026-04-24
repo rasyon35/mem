@@ -13,7 +13,8 @@ from .extractors import TextExtractor
 from .processor import ingest_processor
 from .wiki_context import wiki_context
 from .groq_client import groq_client
-from .models import Source, Contradiction, CriticalPage, PageSource
+from .models import Source, Contradiction, CriticalPage, PageSource, OpenClawProposal
+from .openclaw import open_claw
 
 
 # ---------------------------------------------------------------------------
@@ -1101,3 +1102,100 @@ def apply_categories(request):
                 updated.append(title)
 
     return Response({"status": "applied", "updated": updated, "count": len(updated)}, status=200)
+
+# ---------------------------------------------------------------------------
+# OpenClaw (The Intelligence Brain)
+# ---------------------------------------------------------------------------
+
+@api_view(["GET"])
+def list_openclaw_proposals(request):
+    """List all pending OpenClaw structural suggestions."""
+    proposals = OpenClawProposal.objects.filter(status="pending").order_by("-created_at")
+    data = []
+    for p in proposals:
+        data.append({
+            "id": p.id,
+            "type": p.proposal_type,
+            "title": p.title,
+            "description": p.description,
+            "data": p.data,
+            "timestamp": p.created_at.isoformat()
+        })
+    return Response({"proposals": data}, status=200)
+
+@api_view(["POST"])
+def handle_openclaw_proposal(request):
+    """Approve or dismiss an OpenClaw proposal."""
+    proposal_id = request.data.get("id")
+    action = request.data.get("action") # 'apply', 'dismiss'
+    
+    try:
+        proposal = OpenClawProposal.objects.get(id=proposal_id)
+        if action == "dismiss":
+            proposal.status = "dismissed"
+            proposal.save()
+            return Response({"status": "dismissed"})
+            
+        if action == "apply":
+            wiki_dir = Path(settings.BASE_DIR).parent / "workspace" / "wiki"
+            
+            if proposal.proposal_type == "merge":
+                # Merge logic
+                page_a = proposal.data.get("page_a")
+                page_b = proposal.data.get("page_b")
+                merged_content = proposal.data.get("proposed_content")
+                
+                # Create the merged page (using page_a title or new title if provided)
+                target_file = wiki_dir / f"{page_a}.md"
+                target_file.write_text(merged_content, encoding="utf-8")
+                
+                # Delete the other page
+                other_file = wiki_dir / f"{page_b}.md"
+                if other_file.exists():
+                    other_file.unlink()
+                
+                # Git commit
+                from git import Repo
+                repo = Repo(wiki_dir)
+                repo.git.add(str(target_file))
+                repo.git.rm(str(other_file))
+                repo.index.commit(f"OpenClaw: Merged {page_a} and {page_b}")
+                
+            elif proposal.proposal_type == "gap":
+                # Gap logic
+                title = proposal.title
+                content = proposal.data.get("proposed_content")
+                
+                slug = title.replace(" ", "_")
+                file_path = wiki_dir / f"{slug}.md"
+                file_path.write_text(content, encoding="utf-8")
+                
+                # Git commit
+                from git import Repo
+                repo = Repo(wiki_dir)
+                repo.git.add(str(file_path))
+                repo.index.commit(f"OpenClaw: Created missing concept [[{title}]]")
+
+            proposal.status = "applied"
+            proposal.save()
+            
+            # Rebuild index
+            ingest_processor._rebuild_text_index()
+            from .semantic_index import semantic_index
+            semantic_index.index_all()
+            
+            return Response({"status": "applied"})
+            
+    except OpenClawProposal.DoesNotExist:
+        return Response({"error": "Proposal not found"}, status=404)
+    except Exception as e:
+        return Response({"error": str(e)}, status=500)
+
+@api_view(["POST"])
+def trigger_evolution(request):
+    """Manually trigger an OpenClaw analysis cycle."""
+    try:
+        results = open_claw.run_analysis_cycle()
+        return Response({"status": "complete", "results": results}, status=200)
+    except Exception as e:
+        return Response({"error": str(e)}, status=500)
