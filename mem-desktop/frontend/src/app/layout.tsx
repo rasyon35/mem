@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import './globals.css';
 import { WikiProvider } from '@/context/WikiContext';
+import { ThemeProvider } from '@/context/ThemeContext';
 
 export const metadata: Metadata = {
   title: 'Mem – Personal Knowledge Wiki',
@@ -15,9 +16,11 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <body>
-        <WikiProvider>
-          {children}
-        </WikiProvider>
+        <ThemeProvider>
+          <WikiProvider>
+            {children}
+          </WikiProvider>
+        </ThemeProvider>
       </body>
     </html>
   );

@@ -13,7 +13,7 @@
   font-size: 2.75rem;
   font-weight: 800;
   letter-spacing: -0.03em;
-  background: linear-gradient(135deg, #fff 40%, var(--text-secondary));
+  background: linear-gradient(135deg, var(--text-primary) 40%, var(--text-secondary));
   background-clip: text;
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
@@ -52,13 +52,13 @@
   flex-direction: column;
   gap: 1.5rem;
   transition: all var(--t-normal);
-  box-shadow: 0 8px 32px -4px rgba(0,0,0,0.3);
+  box-shadow: 0 8px 32px -4px rgba(0,0,0,0.12);
 }
 
 .card:hover { 
   border-color: var(--border-hover); 
   transform: translateY(-2px);
-  box-shadow: 0 12px 48px -8px rgba(0,0,0,0.5);
+  box-shadow: 0 12px 48px -8px rgba(0,0,0,0.18);
 }
 
 .dropzone {
@@ -76,7 +76,7 @@
 
 .dropzone:hover {
   border-color: var(--accent);
-  background: rgba(108,99,255,0.05);
+  background: var(--accent-glow);
   color: var(--text-primary);
 }
 
@@ -149,7 +149,7 @@
   background: #fff;
   border-radius: 50%;
   transition: left var(--t);
-  box-shadow: 0 1px 4px rgba(0,0,0,0.4);
+  box-shadow: 0 1px 4px rgba(0,0,0,0.2);
 }
 
 .toggle.on .toggle-thumb { left: 20px; }
@@ -170,12 +170,12 @@
   gap: 0.5rem;
   font-family: inherit;
   white-space: nowrap;
-  box-shadow: 0 4px 16px rgba(108,99,255,0.3);
+  box-shadow: 0 4px 16px var(--accent-glow);
 }
 
 .btn-primary:hover:not(:disabled) {
   transform: translateY(-1px);
-  box-shadow: 0 6px 22px rgba(108,99,255,0.45);
+  box-shadow: 0 6px 22px var(--accent-glow);
 }
 
 .btn-primary:active:not(:disabled) { transform: translateY(0); }
@@ -253,14 +253,14 @@
 }
 
 .tag-new { background: var(--green-bg); color: var(--green); }
-.tag-updated { background: rgba(108,99,255,0.15); color: var(--accent-light); }
+.tag-updated { background: var(--accent-glow); color: var(--accent-dark); }
 .tag-conflict { background: var(--red-bg); color: var(--red); }
 
 /* Modals */
 .modal-overlay {
   position: fixed;
   top: 0; left: 0; right: 0; bottom: 0;
-  background: rgba(0, 0, 0, 0.7);
+  background: rgba(0, 0, 0, 0.4);
   backdrop-filter: blur(4px);
   display: flex;
   align-items: center;
@@ -278,7 +278,7 @@
   max-height: 90vh;
   display: flex;
   flex-direction: column;
-  box-shadow: 0 20px 40px rgba(0,0,0,0.4);
+  box-shadow: 0 20px 40px rgba(0,0,0,0.15);
   animation: modalIn 0.3s ease-out;
 }
 
@@ -305,8 +305,8 @@
 .spinner {
   display: inline-block;
   width: 16px; height: 16px;
-  border: 2px solid rgba(255,255,255,0.3);
-  border-top-color: #fff;
+  border: 2px solid var(--border);
+  border-top-color: var(--accent);
   border-radius: 50%;
   animation: spin 0.65s linear infinite;
 }
