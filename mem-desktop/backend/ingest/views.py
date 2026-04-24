@@ -197,7 +197,7 @@ def list_wiki_pages(request):
     return Response({"pages": pages}, status=status.HTTP_200_OK)
 
 
-@api_view(["GET"])
+@api_view(["GET", "PUT"])
 def get_wiki_page(request, title):
     """Return the full markdown content of a single wiki page with provenance metadata."""
     wiki_dir = Path(settings.BASE_DIR).parent / "workspace" / "wiki"
@@ -217,57 +217,85 @@ def get_wiki_page(request, title):
         if not found:
             return Response({"error": "Page not found"}, status=status.HTTP_404_NOT_FOUND)
 
-    content = file_path.read_text(encoding="utf-8")
-    
-    # Extract metadata from frontmatter if it exists
-    metadata = {}
-    main_content = content
-    if content.startswith("---"):
-        parts = content.split("---", 2)
-        if len(parts) >= 3:
-            fm = parts[1]
-            main_content = parts[2].strip()
-            
-            # Parse frontmatter fields
-            title_match = re.search(r"^title:\s*(.+)$", fm, re.MULTILINE)
-            if title_match: metadata["title"] = title_match.group(1).strip()
-            
-            cat_match = re.search(r"^category:\s*(.+)$", fm, re.MULTILINE)
-            if cat_match: metadata["category"] = cat_match.group(1).strip()
-            
-            type_match = re.search(r"^type:\s*(.+)$", fm, re.MULTILINE)
-            if type_match: metadata["type"] = type_match.group(1).strip()
-            
-            sources_match = re.search(r"^sources:\s*\[(.*?)\]", fm, re.MULTILINE | re.DOTALL)
-            if sources_match:
-                srcs = [s.strip().strip("'").strip('"') for s in sources_match.group(1).split(',')]
-                metadata["sources_list"] = [s for s in srcs if s]
+    if request.method == "GET":
+        content = file_path.read_text(encoding="utf-8")
+        
+        # Extract metadata from frontmatter if it exists
+        metadata = {}
+        main_content = content
+        if content.startswith("---"):
+            parts = content.split("---", 2)
+            if len(parts) >= 3:
+                fm = parts[1]
+                main_content = parts[2].strip()
+                
+                # Parse frontmatter fields
+                title_match = re.search(r"^title:\s*(.+)$", fm, re.MULTILINE)
+                if title_match: metadata["title"] = title_match.group(1).strip()
+                
+                cat_match = re.search(r"^category:\s*(.+)$", fm, re.MULTILINE)
+                if cat_match: metadata["category"] = cat_match.group(1).strip()
+                
+                type_match = re.search(r"^type:\s*(.+)$", fm, re.MULTILINE)
+                if type_match: metadata["type"] = type_match.group(1).strip()
+                
+                sources_match = re.search(r"^sources:\s*\[(.*?)\]", fm, re.MULTILINE | re.DOTALL)
+                if sources_match:
+                    srcs = [s.strip().strip("'").strip('"') for s in sources_match.group(1).split(',')]
+                    metadata["sources_list"] = [s for s in srcs if s]
 
-    actual_title = metadata.get("title", file_path.stem.replace("_", " "))
-    
-    # Query Database for Provenance
-    provenance = []
-    try:
-        page_sources = PageSource.objects.filter(page_title__iexact=actual_title).select_related('source').order_by('-created_at')
-        for ps in page_sources:
-            provenance.append({
-                "source_name": ps.source.name,
-                "source_type": ps.source.source_type,
-                "page_reference": ps.page_reference,
-                "chunk_text": ps.chunk_text,
-                "timestamp": ps.created_at.isoformat()
-            })
-    except Exception as e:
-        print(f"Error fetching provenance: {e}")
+        actual_title = metadata.get("title", file_path.stem.replace("_", " "))
+        
+        # Query Database for Provenance
+        provenance = []
+        try:
+            page_sources = PageSource.objects.filter(page_title__iexact=actual_title).select_related('source').order_by('-created_at')
+            for ps in page_sources:
+                provenance.append({
+                    "source_name": ps.source.name,
+                    "source_type": ps.source.source_type,
+                    "page_reference": ps.page_reference,
+                    "chunk_text": ps.chunk_text,
+                    "timestamp": ps.created_at.isoformat()
+                })
+        except Exception as e:
+            print(f"Error fetching provenance: {e}")
 
-    return Response({
-        "title": actual_title,
-        "content": main_content,
-        "category": metadata.get("category", "Miscellaneous"),
-        "type": metadata.get("type", "concept"),
-        "frontmatter_sources": metadata.get("sources_list", []),
-        "provenance": provenance
-    }, status=status.HTTP_200_OK)
+        return Response({
+            "title": actual_title,
+            "content": main_content,
+            "category": metadata.get("category", "Miscellaneous"),
+            "type": metadata.get("type", "concept"),
+            "frontmatter_sources": metadata.get("sources_list", []),
+            "provenance": provenance
+        }, status=status.HTTP_200_OK)
+
+    elif request.method == "PUT":
+        content = request.data.get("content")
+        if not content:
+            return Response({"error": "Content required"}, status=status.HTTP_400_BAD_REQUEST)
+        
+        # Write the content to the file
+        file_path.write_text(content, encoding="utf-8")
+        
+        # Git commit
+        try:
+            from git import Repo
+            repo = Repo(wiki_dir)
+            repo.git.add(str(file_path))
+            repo.index.commit(f"Updated [[{title}]] via API")
+        except Exception as e:
+            print(f"Git commit failed: {e}")
+        
+        # Rebuild indexes
+        try:
+            ingest_processor._rebuild_text_index()
+            from .semantic_index import semantic_index
+            semantic_index.index_all()
+        except Exception as e:
+            print(f"Index rebuild failed: {e}")
+        
+        return Response({"status": "updated"}, status=status.HTTP_200_OK)
 
 
 # ---------------------------------------------------------------------------
@@ -1199,3 +1227,46 @@ def trigger_evolution(request):
         return Response({"status": "complete", "results": results}, status=200)
     except Exception as e:
         return Response({"error": str(e)}, status=500)
+
+# ------------------------------------------------------------------------------
+# Zapier Webhook Integration
+# ------------------------------------------------------------------------------
+
+@api_view(["POST"])
+def zapier_webhook(request):
+    """Receive webhooks from Zapier and ingest data into memos."""
+    data = request.data
+    action = data.get("action", "ingest")  # e.g., 'ingest', 'update_page'
+    title = data.get("title", "Webhook Content")
+    content = data.get("content", "")
+    
+    if action == "ingest":
+        # Use existing ingest logic
+        result = ingest_processor.process_text(content, title=title, auto_approve=True)
+        return Response({"status": "ingested", "result": result}, status=200)
+    elif action == "update_page":
+        # Update existing page
+        wiki_dir = Path(settings.BASE_DIR).parent / "workspace" / "wiki"
+        file_path = wiki_dir / f"{title.replace(' ', '_')}.md"
+        file_path.write_text(content, encoding="utf-8")
+        
+        # Git commit
+        try:
+            from git import Repo
+            repo = Repo(wiki_dir)
+            repo.git.add(str(file_path))
+            repo.index.commit(f"Updated via Zapier webhook: {title}")
+        except Exception as e:
+            print(f"Git commit failed: {e}")
+        
+        # Rebuild indexes
+        try:
+            ingest_processor._rebuild_text_index()
+            from .semantic_index import semantic_index
+            semantic_index.index_all()
+        except Exception as e:
+            print(f"Index rebuild failed: {e}")
+        
+        return Response({"status": "updated"}, status=200)
+    
+    return Response({"error": "Invalid action"}, status=400)

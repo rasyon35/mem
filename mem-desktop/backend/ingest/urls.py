@@ -39,6 +39,7 @@ urlpatterns = [
     path("openclaw/proposals", views.list_openclaw_proposals, name="openclaw-proposals"),
     path("openclaw/handle", views.handle_openclaw_proposal, name="openclaw-handle"),
     path("openclaw/evolve", views.trigger_evolution, name="openclaw-evolve"),
+    path("zapier/webhook", views.zapier_webhook, name="zapier-webhook"),
 
     # --- Phase 7: Archival & Export ---
     path("export_page", export_views.export_page, name="export_page"),

@@ -45,6 +45,15 @@ export default function SettingsPage() {
     setReorgEdits(prev => ({ ...prev, [title]: value }));
   };
 
+  const copyToClipboard = async (text: string) => {
+    try {
+      await navigator.clipboard.writeText(text);
+      alert('Copied to clipboard');
+    } catch {
+      alert('Unable to copy. Please copy manually.');
+    }
+  };
+
   const handleApplyReorg = async () => {
     setReorgApplying(true);
     const assignments = reorgPreview.map(item => ({
@@ -106,6 +115,59 @@ export default function SettingsPage() {
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
             Download Archive (.zip)
           </a>
+        </div>
+      </div>
+
+      <div className="card">
+        <div className="flex justify-between items-center mb-2">
+          <div>
+            <h2 className="text-xl font-bold">Integrations</h2>
+            <p className="panel-sub">Manual integration steps for OpenClaw and Zapier.</p>
+          </div>
+        </div>
+
+        <div className="grid gap-4">
+          <div className="bg-bg-800 border border-border/50 rounded-xl p-4">
+            <h3 className="font-semibold">OpenClaw</h3>
+            <p className="text-sm text-muted mb-3">
+              OpenClaw integration is installed on the backend startup if available. If you want to install manually, run the OpenClaw installer outside the app.
+            </p>
+            <div className="flex flex-wrap gap-2">
+              <button
+                className="btn-primary"
+                onClick={() => copyToClipboard('powershell -c "irm https://openclaw.ai/install.ps1 | iex"')}
+              >
+                Copy install command
+              </button>
+              <button
+                className="btn-secondary"
+                onClick={() => copyToClipboard('setx OPENCLAW_AUTO_INSTALL false')}
+              >
+                Copy disable auto-install
+              </button>
+            </div>
+          </div>
+
+          <div className="bg-bg-800 border border-border/50 rounded-xl p-4">
+            <h3 className="font-semibold">Zapier</h3>
+            <p className="text-sm text-muted mb-3">
+              Zapier integration is manual. After installing the Zapier app, run the backend command to deploy or update the integration.
+            </p>
+            <div className="flex flex-wrap gap-2">
+              <button
+                className="btn-primary"
+                onClick={() => copyToClipboard('python manage.py ensure_zapier_integration')}
+              >
+                Copy backend command
+              </button>
+              <a
+                href="/dashboard/ingest"
+                className="btn-secondary"
+              >
+                View ingestion settings
+              </a>
+            </div>
+          </div>
         </div>
       </div>
 
