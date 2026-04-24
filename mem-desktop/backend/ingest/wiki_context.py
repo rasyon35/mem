@@ -71,7 +71,7 @@ class WikiContext:
         for title in sorted_titles[:max_pages]:
             content = self.get_page(title)
             if content:
-                snippet = content[:1000]
+                snippet = content[:500]
                 context += f"\n## [[{title}]]\n{snippet}\n---\n"
         
         return context
