@@ -50,6 +50,36 @@
   --t-normal: 250ms var(--ease);
 }
 
+/* ── Light Mode ── */
+[data-theme="light"] {
+  --bg-900: hsl(var(--h), 20%, 96%);
+  --bg-800: hsl(var(--h), 18%, 93%);
+  --bg-700: hsl(var(--h), 16%, 90%);
+  --bg-600: hsl(var(--h), 14%, 86%);
+  --bg-500: hsl(var(--h), 12%, 82%);
+
+  --text-primary: hsl(var(--h), 25%, 10%);
+  --text-secondary: hsl(var(--h), 15%, 35%);
+  --text-muted: hsl(var(--h), 10%, 50%);
+  --text-dim: hsl(var(--h), 8%, 65%);
+
+  --accent: hsl(var(--accent-h), 85%, 55%);
+  --accent-light: hsl(var(--accent-h), 85%, 62%);
+  --accent-dark: hsl(var(--accent-h), 90%, 45%);
+  --accent-glow: hsla(var(--accent-h), 85%, 55%, 0.18);
+
+  --success: hsl(162, 60%, 40%);
+  --warning: hsl(45, 85%, 48%);
+  --danger: hsl(355, 70%, 50%);
+
+  --glass-bg: hsla(var(--h), 20%, 92%, 0.6);
+  --glass-border: hsla(var(--h), 20%, 70%, 0.2);
+  --glass-heavy-bg: hsla(var(--h), 18%, 94%, 0.85);
+
+  --border: hsla(var(--h), 15%, 60%, 0.18);
+  --border-hover: hsla(var(--h), 15%, 50%, 0.3);
+}
+
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
 html, body { height: 100%; }
@@ -60,6 +90,7 @@ body {
   color: var(--text-primary);
   line-height: 1.6;
   -webkit-font-smoothing: antialiased;
+  transition: background 0.3s ease, color 0.3s ease;
 }
 
 ::-webkit-scrollbar { width: 5px; height: 5px; }

@@ -9,7 +9,7 @@ const GraphViewer = dynamic(() => import('@/components/GraphViewer'), { ssr: fal
 export default function GraphPage() {
   return (
     <div className="h-screen w-full p-4">
-      <div className="h-full w-full rounded-2xl border border-border overflow-hidden bg-bg-900 relative">
+      <div className="h-full w-full rounded-2xl overflow-hidden relative" style={{ border: '1px solid var(--border)', background: 'var(--bg-900)' }}>
         <GraphViewer />
       </div>
     </div>

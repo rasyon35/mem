@@ -40,7 +40,7 @@
     text-align: center;
 }
 
-.setup-card.active { border-color: var(--accent); box-shadow: 0 0 20px rgba(108,99,255,0.1); }
+.setup-card.active { border-color: var(--accent); box-shadow: 0 0 20px var(--accent-glow); }
 .setup-icon { font-size: 2.5rem; margin-bottom: 0.5rem; }
 
 /* Conflict Resolution Wizard */
@@ -53,7 +53,7 @@
   padding: 0 !important;
   overflow: hidden;
   border: 1px solid var(--border);
-  box-shadow: 0 20px 40px rgba(0,0,0,0.5);
+  box-shadow: 0 20px 40px rgba(0,0,0,0.15);
 }
 
 .wizard-sidebar {
