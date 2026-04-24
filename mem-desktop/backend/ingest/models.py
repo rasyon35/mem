@@ -43,3 +43,26 @@ class PageSource(models.Model):
 
     def __str__(self):
         return f"{self.page_title} -> {self.source.name}"
+
+class OpenClawProposal(models.Model):
+    PROPOSAL_TYPES = [
+        ("merge", "Merge Pages"),
+        ("split", "Split Page"),
+        ("gap", "New Page (Gap)"),
+        ("update", "Restructuring Update"),
+    ]
+    STATUS_CHOICES = [
+        ("pending", "Pending"),
+        ("applied", "Applied"),
+        ("dismissed", "Dismissed"),
+    ]
+    proposal_type = models.CharField(max_length=20, choices=PROPOSAL_TYPES)
+    title = models.CharField(max_length=255)
+    description = models.TextField()
+    # Using JSONField for flexibility in storing proposed content or page lists
+    data = models.JSONField(default=dict)
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default="pending")
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"OpenClaw: {self.get_proposal_type_display()} - {self.title}"

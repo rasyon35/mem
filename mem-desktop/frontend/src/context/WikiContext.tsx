@@ -96,6 +96,13 @@ interface WikiContextType {
   suggestionsLoading: boolean;
   fetchSuggestions: (title: string) => Promise<void>;
   addLinkToPage: (pageTitle: string, targetTitle: string) => Promise<void>;
+
+  // Phase 6: OpenClaw (Evolution)
+  openClawProposals: any[];
+  fetchOpenClawProposals: () => Promise<void>;
+  handleOpenClawProposal: (id: number, action: 'apply' | 'dismiss') => Promise<void>;
+  triggerEvolution: () => Promise<void>;
+  evolutionLoading: boolean;
 }
 
 const WikiContext = createContext<WikiContextType | undefined>(undefined);
@@ -134,6 +141,9 @@ export const WikiProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const [suggestedLinks, setSuggestedLinks] = useState<{ title: string; score: number }[]>([]);
   const [suggestionsLoading, setSuggestionsLoading] = useState(false);
+
+  const [openClawProposals, setOpenClawProposals] = useState<any[]>([]);
+  const [evolutionLoading, setEvolutionLoading] = useState(false);
 
   // Auto-scroll chat
   useEffect(() => {
@@ -417,6 +427,38 @@ export const WikiProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
+  const fetchOpenClawProposals = async () => {
+    try {
+      const res = await axios.get(`${API}/openclaw/proposals`);
+      setOpenClawProposals(res.data.proposals || []);
+    } catch { /* ignore */ }
+  };
+
+  const handleOpenClawProposal = async (id: number, action: 'apply' | 'dismiss') => {
+    setLoading(true);
+    try {
+      await axios.post(`${API}/openclaw/handle`, { id, action });
+      await fetchOpenClawProposals();
+      await fetchWikiPages();
+    } catch { 
+      alert('Failed to handle proposal');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const triggerEvolution = async () => {
+    setEvolutionLoading(true);
+    try {
+      await axios.post(`${API}/openclaw/evolve`);
+      await fetchOpenClawProposals();
+    } catch {
+      alert('Evolution engine failed to start');
+    } finally {
+      setEvolutionLoading(false);
+    }
+  };
+
   return (
     <WikiContext.Provider value={{
       file, setFile, url, setUrl, autoApprove, setAutoApprove, loading, result, setResult, handleIngest, handleApprove,
@@ -430,7 +472,8 @@ export const WikiProvider: React.FC<{ children: React.ReactNode }> = ({ children
       presence, trackActivity, fetchPresence,
       locks, fetchLocks, handleLock, handleUnlock,
       graphData, fetchGraphData,
-      suggestedLinks, suggestionsLoading, fetchSuggestions, addLinkToPage
+      suggestedLinks, suggestionsLoading, fetchSuggestions, addLinkToPage,
+      openClawProposals, fetchOpenClawProposals, handleOpenClawProposal, triggerEvolution, evolutionLoading
     }}>
       {children}
     </WikiContext.Provider>
