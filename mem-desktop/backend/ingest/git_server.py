@@ -16,8 +16,8 @@ def git_hub_view(request, repo_name):
     
     URL should look like: /git/<repo_name>/info/refs, /git/<repo_name>/git-receive-pack, etc.
     """
-    workspace_root = Path(settings.BASE_DIR).parent / "workspace"
-    project_root = workspace_root / "wiki" # For now, we only serve the wiki
+    workspace_root = Path(settings.WORKSPACE_ROOT)
+    project_root = Path(settings.WORKSPACE_WIKI_DIR)  # For now, we only serve the wiki
     
     # Security: In a more advanced version, we'd check an 'Authorization' header here
     # against a token stored in the database or team.json.

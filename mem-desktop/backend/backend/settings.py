@@ -23,6 +23,7 @@ load_dotenv(BASE_DIR / '.env')
 # Groq LLM settings
 GROQ_API_KEY = os.getenv('GROQ_API_KEY', '')
 GROQ_MODEL = os.getenv('GROQ_MODEL', 'mixtral-8x7b-32768')
+MEMOS_LICENSE_KEY = os.getenv('MEMOS_LICENSE_KEY', '')
 
 
 
@@ -53,6 +54,7 @@ INSTALLED_APPS = [
     'rest_framework',
     'core',
     'ingest',
+    'knowledge',
 ]
 
 MIDDLEWARE = [
@@ -132,3 +134,21 @@ USE_TZ = True
 # https://docs.djangoproject.com/en/6.0/howto/static-files/
 
 STATIC_URL = 'static/'
+
+# Graph API behavior
+GRAPH_MAX_NODES = int(os.getenv('GRAPH_MAX_NODES', '3000'))
+GRAPH_MAX_LINKS = int(os.getenv('GRAPH_MAX_LINKS', '6000'))
+GRAPH_CACHE_TTL_SEC = int(os.getenv('GRAPH_CACHE_TTL_SEC', '5'))
+WIKI_V2_ENABLED = os.getenv('WIKI_V2_ENABLED', 'true').lower() == 'true'
+POLICY_ENGINE_ENABLED = os.getenv('POLICY_ENGINE_ENABLED', 'true').lower() == 'true'
+AUTO_QUERY_COMPOUND_ENABLED = os.getenv('AUTO_QUERY_COMPOUND_ENABLED', 'true').lower() == 'true'
+LINT_AUTOFIX_ENABLED = os.getenv('LINT_AUTOFIX_ENABLED', 'true').lower() == 'true'
+
+# Shared workspace paths (single source of truth)
+WORKSPACE_ROOT = Path(os.getenv('WORKSPACE_ROOT', str(BASE_DIR.parent / 'workspace')))
+WORKSPACE_RAW_DIR = WORKSPACE_ROOT / 'raw'
+WORKSPACE_WIKI_DIR = WORKSPACE_ROOT / 'wiki'
+WORKSPACE_INDEX_DIR = WORKSPACE_ROOT / '_chroma_index'
+
+CELERY_BROKER_URL = os.getenv("CELERY_BROKER_URL", "redis://localhost:6379/0")
+CELERY_RESULT_BACKEND = os.getenv("CELERY_RESULT_BACKEND", CELERY_BROKER_URL)

@@ -3,12 +3,28 @@
 import { useState } from 'react';
 import { useWiki } from '@/context/WikiContext';
 import { UploadIcon, Spinner } from '@/components/Icons';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion } from 'framer-motion';
+import axios from 'axios';
+
+const API = 'http://localhost:8000/api';
+
+type ProposedPageChange = {
+  title: string;
+  category?: string;
+  content?: string;
+  original_content?: string;
+};
+
+type ProposedChanges = {
+  new_pages?: ProposedPageChange[];
+  updated_pages?: ProposedPageChange[];
+  [key: string]: unknown;
+};
 
 export default function IngestPage() {
   const { 
     file, setFile, url, setUrl, autoApprove, setAutoApprove, 
-    loading, result, setResult, handleIngest, handleApprove, setModalDiff 
+    loading, result, setResult, handleIngest, setModalDiff 
   } = useWiki();
 
   // Local state for editable categories on staged results
@@ -20,24 +36,27 @@ export default function IngestPage() {
 
   // Wrap handleApprove to inject category overrides into proposed_changes before sending
   const handleApproveWithCategories = async () => {
-    if (result?.proposed_changes) {
-      const changes = result.proposed_changes as any;
-      // Apply overrides to new_pages
-      if (changes.new_pages) {
-        changes.new_pages = changes.new_pages.map((p: any) => ({
-          ...p,
-          category: categoryOverrides[p.title] || p.category || 'Miscellaneous'
-        }));
-      }
-      // Apply overrides to updated_pages
-      if (changes.updated_pages) {
-        changes.updated_pages = changes.updated_pages.map((p: any) => ({
-          ...p,
-          category: categoryOverrides[p.title] || p.category || ''
-        }));
-      }
+    const proposed = result?.proposed_changes as ProposedChanges | undefined;
+    if (!proposed) return;
+
+    const changes: ProposedChanges = {
+      ...proposed,
+      new_pages: proposed.new_pages?.map((p) => ({
+        ...p,
+        category: categoryOverrides[p.title] || p.category || 'Miscellaneous',
+      })),
+      updated_pages: proposed.updated_pages?.map((p) => ({
+        ...p,
+        category: categoryOverrides[p.title] || p.category || '',
+      })),
+    };
+
+    try {
+      const res = await axios.post(`${API}/approve`, { changes });
+      setResult({ ...res.data });
+    } catch {
+      setResult({ error: 'Approval request failed' });
     }
-    await handleApprove();
     setCategoryOverrides({});
   };
 

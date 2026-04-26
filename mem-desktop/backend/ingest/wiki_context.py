@@ -39,7 +39,10 @@ class WikiContext:
         scores = {}
 
         # 1. Semantic Search (Weight: 2.0)
-        semantic_results = semantic_index.search(query, top_k=max_pages)
+        try:
+            semantic_results = semantic_index.search(query, top_k=max_pages)
+        except Exception:
+            semantic_results = []
         for title, score in semantic_results:
             scores[title] = scores.get(title, 0) + (score * 2.0)
 
@@ -114,7 +117,10 @@ class WikiContext:
         # 1. Get semantic matches
         # We query using the title + snippet for more context
         query = f"{title}\n{content[:500]}"
-        results = semantic_index.search(query, top_k=top_k + 5) # Get extra for filtering
+        try:
+            results = semantic_index.search(query, top_k=top_k + 5)  # Get extra for filtering
+        except Exception:
+            results = []
 
         # 2. Extract existing links
         existing_links = set(re.findall(r"\[\[([^\]]+)\]\]", content))
@@ -143,5 +149,5 @@ class WikiContext:
 
 # Singleton – resolved path relative to workspace
 wiki_context = WikiContext(
-    Path(settings.BASE_DIR).parent / "workspace" / "wiki"
+    Path(settings.WORKSPACE_WIKI_DIR)
 )

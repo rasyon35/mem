@@ -1,22 +1,25 @@
 import json
+import mimetypes
+import hashlib
 import subprocess
 from pathlib import Path
 from datetime import datetime
 from django.conf import settings
 from .extractors import TextExtractor
-from .groq_client import groq_client
+from .ai_client import memos_ai as ai_client
 from .wiki_context import wiki_context
 from .semantic_index import semantic_index
-from .models import Source, Contradiction, CriticalPage
+from .models import ClaimRevision, KnowledgeClaim, Source, Contradiction, CriticalPage, RawArtifactLedger
+from .policy import policy_engine
 
 
 class IngestProcessor:
     """Orchestrates the full ingest pipeline: extract → LLM → stage → apply → git commit"""
 
     def __init__(self):
-        self.workspace_root = Path(settings.BASE_DIR).parent / "workspace"
-        self.raw_dir = self.workspace_root / "raw"
-        self.wiki_dir = self.workspace_root / "wiki"
+        self.workspace_root = Path(settings.WORKSPACE_ROOT)
+        self.raw_dir = Path(settings.WORKSPACE_RAW_DIR)
+        self.wiki_dir = Path(settings.WORKSPACE_WIKI_DIR)
         self.wiki_dir.mkdir(parents=True, exist_ok=True)
         # Ensure wiki is a git repo so commits don't fail
         self._ensure_git_repo()
@@ -24,6 +27,12 @@ class IngestProcessor:
     # ------------------------------------------------------------------
     # Public API
     # ------------------------------------------------------------------
+
+    def process_text(self, text, title="Ingested Note", auto_approve=True, user_email=None):
+        temp_name = f"{title.replace(' ', '_')[:80]}.md"
+        temp_file = self.raw_dir / temp_name
+        temp_file.write_text(text, encoding="utf-8")
+        return self.process_file(temp_file, auto_approve=auto_approve, user_email=user_email)
 
     def process_file(self, file_path, auto_approve=False, user_email=None):
         """
@@ -36,6 +45,7 @@ class IngestProcessor:
             return {"error": "Viewers cannot ingest new sources"}
 
         file_path = Path(file_path)
+        source_obj = self._register_raw_artifact(file_path)
 
         # 1. Extract text
         try:
@@ -64,8 +74,8 @@ class IngestProcessor:
                 existing_categories.add(cat_match.group(1).strip().strip("'").strip('"'))
         existing_categories_str = ", ".join(sorted(list(existing_categories)))
 
-        # 3. Call Groq LLM
-        llm_result = groq_client.generate_wiki_updates(
+        # 3. Call Memos AI Gateway
+        llm_result = ai_client.generate_wiki_updates(
             text=text,
             source_name=file_path.name,
             existing_wiki_context=existing_context,
@@ -77,14 +87,9 @@ class IngestProcessor:
             return {"error": llm_result["error"]}
 
         # 4. Save Source metadata
-        source_obj, _ = Source.objects.get_or_create(
-            name=file_path.name,
-            defaults={
-                "source_type": "file",  # URL sources are also saved as files in raw/
-                "path_or_url": str(file_path),
-                "summary": llm_result.get("summary", ""),
-            },
-        )
+        if source_obj.summary != llm_result.get("summary", ""):
+            source_obj.summary = llm_result.get("summary", "")
+            source_obj.save(update_fields=["summary"])
 
         # 5. Detect if any critical pages are being updated
         critical = self._get_critical_pages()
@@ -119,20 +124,40 @@ class IngestProcessor:
         branch_name = f"ingest/ai-{int(datetime.now().timestamp())}"
         staged["branch_name"] = branch_name
         
-        # Switch to branch
-        subprocess.run(["git", "checkout", "-b", branch_name], cwd=self.wiki_dir, capture_output=True)
+        # Switch to branch (deterministic and recoverable)
+        checkout_result = subprocess.run(
+            ["git", "checkout", "-b", branch_name],
+            cwd=self.wiki_dir,
+            capture_output=True,
+            text=True,
+        )
+        if checkout_result.returncode != 0:
+            return {"error": f"Failed to create ingest branch: {checkout_result.stderr.strip()}"}
         
         # Write files for the PR
         self._write_files_for_staged(staged)
+        staged["index_updated"] = True
+        staged["log_appended"] = True
+        staged["contradiction_scan_completed"] = True
         
         # Selective commit on branch
         self._git_commit(f"AI ingest: {file_path.name}")
         
         # Return to main (working directory stays clean)
-        subprocess.run(["git", "checkout", "main"], cwd=self.wiki_dir, capture_output=True)
+        subprocess.run(["git", "checkout", self._get_default_branch()], cwd=self.wiki_dir, capture_output=True)
 
         # 7. Auto-apply if requested and no critical pages touched
-        if auto_approve and not touches_critical:
+        policy_result = policy_engine.evaluate(source_obj, staged, touches_critical=touches_critical)
+        staged["policy"] = {
+            "passed": policy_result.passed,
+            "gate_level": policy_result.gate_level,
+            "risk_score": policy_result.risk_score,
+            "checks": policy_result.checks,
+            "missing": policy_result.missing,
+            "remediation_ids": policy_result.remediation_ids,
+        }
+
+        if auto_approve and (policy_result.passed or policy_result.gate_level == "soft") and not touches_critical:
             return self.apply_changes(staged)
 
         return {
@@ -146,7 +171,30 @@ class IngestProcessor:
                 "contradictions": len(staged["contradictions"]),
                 "branch": branch_name
             },
+            "policy": staged["policy"],
         }
+
+    def _register_raw_artifact(self, file_path: Path):
+        canonical_path = str(file_path.resolve())
+        source_obj, _ = Source.objects.get_or_create(
+            path_or_url=canonical_path,
+            defaults={
+                "name": file_path.name,
+                "source_type": "file",
+                "summary": "",
+            },
+        )
+        raw_bytes = file_path.read_bytes()
+        digest = hashlib.sha256(raw_bytes).hexdigest()
+        mime_type, _ = mimetypes.guess_type(file_path.name)
+        RawArtifactLedger.objects.create(
+            source=source_obj,
+            sha256=digest,
+            mime_type=mime_type or "application/octet-stream",
+            canonical_path=canonical_path,
+            size_bytes=len(raw_bytes),
+        )
+        return source_obj
 
     def _write_files_for_staged(self, staged_changes):
         """Helper to write markdown files based on staged changes (used on branch)"""
@@ -211,7 +259,8 @@ class IngestProcessor:
 
         if branch_name:
             # Execute Git Merge
-            subprocess.run(["git", "checkout", "main"], cwd=self.wiki_dir, capture_output=True)
+            default_branch = self._get_default_branch()
+            subprocess.run(["git", "checkout", default_branch], cwd=self.wiki_dir, capture_output=True)
             result = subprocess.run(
                 ["git", "merge", branch_name, "--no-ff", "-m", f"Approved PR: {branch_name}"],
                 cwd=self.wiki_dir,
@@ -219,7 +268,7 @@ class IngestProcessor:
                 text=True
             )
             if result.returncode == 0:
-                changes_made.append(f"Merged branch {branch_name} into main")
+                changes_made.append(f"Merged branch {branch_name} into {default_branch}")
                 # Optional: delete the branch after successful merge
                 subprocess.run(["git", "branch", "-d", branch_name], cwd=self.wiki_dir, capture_output=True)
             else:
@@ -240,6 +289,7 @@ class IngestProcessor:
         # Store contradictions and provenance
         self._store_contradictions(staged_changes)
         self._store_provenance(staged_changes)
+        self._store_claims(staged_changes)
 
         return {
             "status": "applied",
@@ -376,6 +426,24 @@ class IngestProcessor:
             subprocess.run(["git", "add", "index.md"], cwd=self.wiki_dir, capture_output=True)
             subprocess.run(["git", "commit", "-m", "Initial commit"], cwd=self.wiki_dir, capture_output=True)
 
+    def _get_default_branch(self):
+        """Return default branch name available in local wiki repository."""
+        try:
+            res = subprocess.run(
+                ["git", "branch", "--list"],
+                cwd=self.wiki_dir,
+                capture_output=True,
+                text=True,
+            )
+            branches = res.stdout
+            if " main" in branches or "* main" in branches:
+                return "main"
+            if " master" in branches or "* master" in branches:
+                return "master"
+        except Exception:
+            pass
+        return "main"
+
     def _git_commit(self, message):
         """Stage specific files and commit"""
         try:
@@ -444,6 +512,32 @@ class IngestProcessor:
                     )
         except Exception as e:
             print(f"Error storing provenance: {e}")
+
+    def _store_claims(self, staged_changes):
+        source_id = staged_changes.get("source_id")
+        if not source_id:
+            return
+        source = Source.objects.filter(id=source_id).first()
+        if not source:
+            return
+        all_pages = staged_changes.get("new_pages", []) + staged_changes.get("updated_pages", [])
+        for page in all_pages:
+            title = page.get("title", "unknown")
+            content = page.get("content", "")
+            claim_text = content.split(".")[0][:800].strip() or content[:800].strip()
+            if not claim_text:
+                continue
+            claim = KnowledgeClaim.objects.create(
+                page_title=title,
+                claim_text=claim_text,
+                source=source,
+                confidence="medium",
+            )
+            ClaimRevision.objects.create(
+                claim=claim,
+                revision_text=claim_text,
+                note="created during ingest apply",
+            )
 
 # Singleton
 ingest_processor = IngestProcessor()

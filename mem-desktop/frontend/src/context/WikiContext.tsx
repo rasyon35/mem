@@ -6,7 +6,38 @@ import axios from 'axios';
 const API = 'http://localhost:8000/api';
 
 export type WikiPage = { title: string; description: string; type?: string; category?: string };
-export type ChatMsg = { role: 'user' | 'ai'; text: string };
+export type ChatSurface = 'main' | 'wiki' | 'graph';
+export type ChatCitation = {
+  page_title: string;
+  snippet?: string;
+  type?: string;
+  source_type?: string;
+  source_name?: string;
+  source_path_or_url?: string;
+  page_reference?: string;
+  evidence_snippet?: string;
+  relevance_score?: number;
+};
+export type ChatMode = 'global' | 'wiki_page' | 'graph_node';
+export type ChatContextPayload = {
+  pageTitle?: string;
+  nodeId?: string;
+  relatedNodes?: string[];
+};
+export type ChatAnswerMeta = {
+  citations?: ChatCitation[];
+  confidence?: 'low' | 'medium' | 'high';
+  reasoning_summary?: string;
+};
+export type ChatMsg = { role: 'user' | 'ai'; text: string; meta?: ChatAnswerMeta };
+type ChatSurfaceState = {
+  question: string;
+  chatLog: ChatMsg[];
+  chatLoading: boolean;
+  chatMode: ChatMode;
+  chatContext: ChatContextPayload;
+  lastChatRequest: { question: string; mode: ChatMode; context: ChatContextPayload } | null;
+};
 
 export type IngestResult = {
   status?: 'staged' | 'applied';
@@ -37,17 +68,31 @@ interface WikiContextType {
   // Chat
   question: string; setQuestion: (q: string) => void;
   chatLog: ChatMsg[];
+  chatMetaLog: ChatAnswerMeta[];
+  chatMode: ChatMode;
+  chatContext: ChatContextPayload;
   chatLoading: boolean;
   chatEndRef: React.RefObject<HTMLDivElement | null>;
   handleChat: (pageContext?: string) => Promise<void>;
+  ask: (surface: ChatSurface, questionText: string, options?: { mode?: ChatMode; context?: ChatContextPayload }) => Promise<void>;
+  retry: (surface: ChatSurface) => Promise<void>;
+  clearConversation: (surface: ChatSurface) => void;
+  setContext: (surface: ChatSurface, mode: ChatMode, context?: ChatContextPayload) => void;
+  getChatState: (surface: ChatSurface) => {
+    question: string;
+    chatLog: ChatMsg[];
+    chatLoading: boolean;
+    chatMode: ChatMode;
+    chatContext: ChatContextPayload;
+    chatEndRef: React.RefObject<HTMLDivElement | null>;
+  };
+  setQuestionForSurface: (surface: ChatSurface, q: string) => void;
 
 
-  // Wiki
-  wikiPages: WikiPage[];
-  selectedPage: { title: string; content: string; category?: string; provenance?: any[] } | null; setSelectedPage: (p: { title: string; content: string; category?: string; provenance?: any[] } | null) => void;
+  // Wiki - Unified Markdown V2 Logic
+  wikiPages: any[];
   fetchWikiPages: () => Promise<void>;
-  openPage: (title: string) => Promise<void>;
-
+  
   // Timeline & History
   gitHistory: any[];
   fetchHistory: (pageTitle?: string) => Promise<void>;
@@ -89,20 +134,37 @@ interface WikiContextType {
   handleUnlock: (pageTitle: string, user: string, force?: boolean) => Promise<{ success: boolean; error?: string }>;
   // Graph
   graphData: { nodes: any[]; links: any[] };
-  fetchGraphData: () => Promise<void>;
+  graphStats: { node_count: number; link_count: number; ghost_count: number; hub_count: number; orphan_count: number } | null;
+  graphMeta: { truncated?: boolean; build_ms?: number; revision?: string; focus?: string | null; depth?: number } | null;
+  graphLoading: boolean;
+  graphError: string | null;
+  fetchGraphData: (options?: {
+    focus?: string;
+    depth?: number;
+    q?: string;
+    includeGhost?: boolean;
+    minDegree?: number;
+    limitNodes?: number;
+    limitLinks?: number;
+  }) => Promise<void>;
+  trackMetricEvent: (event: string, payload?: Record<string, unknown>) => Promise<void>;
 
   // Phase 5: Synthesis
   suggestedLinks: { title: string; score: number }[];
   suggestionsLoading: boolean;
   fetchSuggestions: (title: string) => Promise<void>;
-  addLinkToPage: (pageTitle: string, targetTitle: string) => Promise<void>;
-
-  // Phase 6: OpenClaw (Evolution)
-  openClawProposals: any[];
-  fetchOpenClawProposals: () => Promise<void>;
-  handleOpenClawProposal: (id: number, action: 'apply' | 'dismiss') => Promise<void>;
-  triggerEvolution: () => Promise<void>;
-  evolutionLoading: boolean;
+  runLint: () => Promise<void>;
+  lintRuns: any[];
+  lintFindings: any[];
+  remediationTasks: any[];
+  fetchLintFindings: (runId?: number) => Promise<void>;
+  fetchRemediationTasks: () => Promise<void>;
+  updateRemediationTask: (id: number, status: string) => Promise<void>;
+  fetchQueryArtifacts: () => Promise<void>;
+  queryArtifacts: any[];
+  undoQueryArtifact: (artifactId: number) => Promise<void>;
+  zenMode: boolean;
+  setZenMode: (v: boolean) => void;
 }
 
 const WikiContext = createContext<WikiContextType | undefined>(undefined);
@@ -114,13 +176,24 @@ export const WikiProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<IngestResult | null>(null);
 
-  const [question, setQuestion] = useState('');
-  const [chatLog, setChatLog] = useState<ChatMsg[]>([]);
-  const [chatLoading, setChatLoading] = useState(false);
-  const chatEndRef = useRef<HTMLDivElement>(null);
+  const defaultSurfaceState = (): ChatSurfaceState => ({
+    question: '',
+    chatLog: [],
+    chatLoading: false,
+    chatMode: 'global',
+    chatContext: {},
+    lastChatRequest: null,
+  });
+  const [chatState, setChatState] = useState<Record<ChatSurface, ChatSurfaceState>>({
+    main: defaultSurfaceState(),
+    wiki: defaultSurfaceState(),
+    graph: defaultSurfaceState(),
+  });
+  const mainChatEndRef = useRef<HTMLDivElement>(null);
+  const wikiChatEndRef = useRef<HTMLDivElement>(null);
+  const graphChatEndRef = useRef<HTMLDivElement>(null);
 
-  const [wikiPages, setWikiPages] = useState<WikiPage[]>([]);
-  const [selectedPage, setSelectedPage] = useState<{ title: string; content: string; category?: string; provenance?: any[] } | null>(null);
+  const [wikiPages, setWikiPages] = useState<any[]>([]);
   const [gitHistory, setGitHistory] = useState<any[]>([]);
   const [pullRequests, setPullRequests] = useState<any[]>([]);
   const [contradictions, setContradictions] = useState<any[]>([]);
@@ -138,17 +211,47 @@ export const WikiProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [mergeModalOpen, setMergeModalOpen] = useState(false);
   const [presence, setPresence] = useState<Record<string, any>>({});
   const [graphData, setGraphData] = useState<{ nodes: any[]; links: any[] }>({ nodes: [], links: [] });
+  const [graphStats, setGraphStats] = useState<any>(null);
+  const [graphMeta, setGraphMeta] = useState<any>(null);
+  const [graphLoading, setGraphLoading] = useState(false);
+  const [graphError, setGraphError] = useState<string | null>(null);
 
   const [suggestedLinks, setSuggestedLinks] = useState<{ title: string; score: number }[]>([]);
   const [suggestionsLoading, setSuggestionsLoading] = useState(false);
+  const [lintRuns, setLintRuns] = useState<any[]>([]);
+  const [lintFindings, setLintFindings] = useState<any[]>([]);
+  const [remediationTasks, setRemediationTasks] = useState<any[]>([]);
+  const [queryArtifacts, setQueryArtifacts] = useState<any[]>([]);
+  const [zenMode, setZenMode] = useState(false);
 
-  const [openClawProposals, setOpenClawProposals] = useState<any[]>([]);
-  const [evolutionLoading, setEvolutionLoading] = useState(false);
 
-  // Auto-scroll chat
+  const getChatEndRef = (surface: ChatSurface) => {
+    if (surface === 'wiki') return wikiChatEndRef;
+    if (surface === 'graph') return graphChatEndRef;
+    return mainChatEndRef;
+  };
+  const getSurfaceState = (surface: ChatSurface) => chatState[surface];
+  const setQuestionForSurface = (surface: ChatSurface, q: string) => {
+    setChatState(prev => ({ ...prev, [surface]: { ...prev[surface], question: q } }));
+  };
+
   useEffect(() => {
-    chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [chatLog]);
+    mainChatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [chatState.main.chatLog]);
+  useEffect(() => {
+    wikiChatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [chatState.wiki.chatLog]);
+  useEffect(() => {
+    graphChatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [chatState.graph.chatLog]);
+
+  const trackMetricEvent = async (event: string, payload: Record<string, unknown> = {}) => {
+    try {
+      await axios.post(`${API}/metrics/event`, { event, payload });
+    } catch {
+      // Metrics are non-blocking.
+    }
+  };
 
   // Background Presence & Heartbeat
   useEffect(() => {
@@ -166,17 +269,6 @@ export const WikiProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return () => clearInterval(pollInterval);
   }, []);
 
-  // 3. Heartbeat for current page activity (every 5 seconds)
-  useEffect(() => {
-    if (!selectedPage?.title) return;
-    
-    trackActivity(selectedPage.title);
-    const activityInterval = setInterval(() => {
-      trackActivity(selectedPage.title);
-    }, 5000);
-
-    return () => clearInterval(activityInterval);
-  }, [selectedPage?.title]);
 
   const handleIngest = async () => {
     if (!file && !url.trim()) return;
@@ -189,8 +281,18 @@ export const WikiProvider: React.FC<{ children: React.ReactNode }> = ({ children
     try {
       const res = await axios.post(`${API}/ingest`, formData);
       setResult(res.data);
+      await trackMetricEvent('frontend_ingest_completed', {
+        source_type: file ? 'file' : 'url',
+        has_error: Boolean(res.data?.error),
+        status: res.data?.status || 'unknown',
+      });
     } catch {
       setResult({ error: 'Request failed' });
+      await trackMetricEvent('frontend_ingest_completed', {
+        source_type: file ? 'file' : 'url',
+        has_error: true,
+        status: 'failed',
+      });
     } finally { setLoading(false); }
   };
 
@@ -201,40 +303,146 @@ export const WikiProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const res = await axios.post(`${API}/approve`, { changes: result.proposed_changes });
       setResult({ ...res.data });
       fetchHistory();
+      await trackMetricEvent('frontend_approve_completed', {
+        has_error: Boolean(res.data?.error),
+        status: res.data?.status || 'unknown',
+      });
     } catch {
       setResult({ error: 'Approval request failed' });
+      await trackMetricEvent('frontend_approve_completed', {
+        has_error: true,
+        status: 'failed',
+      });
     } finally { setLoading(false); }
   };
 
-  const handleChat = async (pageContext?: string) => {
-    if (!question.trim()) return;
-    const q = question.trim();
-    setChatLog(prev => [...prev, { role: 'user', text: q }]);
-    setQuestion('');
-    setChatLoading(true);
+  const setContext = (surface: ChatSurface, mode: ChatMode, context: ChatContextPayload = {}) => {
+    setChatState(prev => ({
+      ...prev,
+      [surface]: {
+        ...prev[surface],
+        chatMode: mode,
+        chatContext: context,
+      },
+    }));
+  };
+
+  const ask = async (
+    surface: ChatSurface,
+    questionText: string,
+    options: { mode?: ChatMode; context?: ChatContextPayload } = {},
+  ) => {
+    if (!questionText.trim()) return;
+    const q = questionText.trim();
+    const surfaceState = getSurfaceState(surface);
+    const mode = options.mode || surfaceState.chatMode;
+    const contextPayload = options.context || surfaceState.chatContext;
+    setChatState(prev => ({
+      ...prev,
+      [surface]: {
+        ...prev[surface],
+        question: '',
+        chatLoading: true,
+        lastChatRequest: { question: q, mode, context: contextPayload },
+        chatLog: [...prev[surface].chatLog, { role: 'user', text: q }],
+      },
+    }));
+    await trackMetricEvent('chat_message_sent', {
+      surface,
+      mode,
+      has_context: Boolean(contextPayload.pageTitle || contextPayload.nodeId),
+    });
     try {
-      const payload: any = { question: q };
+      const payload: any = { question: q, surface };
+      const pageContext = contextPayload.pageTitle || contextPayload.nodeId;
       if (pageContext) payload.page_context = pageContext;
       
       const res = await axios.post(`${API}/chat`, payload);
-      setChatLog(prev => [...prev, { role: 'ai', text: res.data.answer }]);
+      const aiMeta: ChatAnswerMeta = {
+        citations: res.data.citations || [],
+        confidence: res.data.confidence || 'medium',
+        reasoning_summary: res.data.reasoning_summary || '',
+      };
+      setChatState(prev => ({
+        ...prev,
+        [surface]: {
+          ...prev[surface],
+          chatLog: [...prev[surface].chatLog, { role: 'ai', text: res.data.answer, meta: aiMeta }],
+        },
+      }));
+      await trackMetricEvent('chat_answer_received', {
+        surface,
+        mode,
+        confidence: res.data.confidence || 'medium',
+        citations_count: Array.isArray(res.data.citations) ? res.data.citations.length : 0,
+      });
+      await trackMetricEvent('frontend_chat_completed', {
+        surface,
+        with_page_context: Boolean(pageContext),
+        has_error: false,
+      });
     } catch {
-      setChatLog(prev => [...prev, { role: 'ai', text: '⚠️ Could not reach backend.' }]);
-    } finally { setChatLoading(false); }
+      setChatState(prev => ({
+        ...prev,
+        [surface]: {
+          ...prev[surface],
+          chatLog: [
+            ...prev[surface].chatLog,
+            { role: 'ai', text: '⚠️ Could not reach backend.', meta: { citations: [], confidence: 'low', reasoning_summary: 'Request failed.' } },
+          ],
+        },
+      }));
+      await trackMetricEvent('frontend_chat_completed', {
+        surface,
+        with_page_context: Boolean(contextPayload.pageTitle || contextPayload.nodeId),
+        has_error: true,
+      });
+    } finally {
+      setChatState(prev => ({
+        ...prev,
+        [surface]: { ...prev[surface], chatLoading: false },
+      }));
+    }
+  };
+
+  const retry = async (surface: ChatSurface) => {
+    const surfaceState = getSurfaceState(surface);
+    if (!surfaceState.lastChatRequest) return;
+    await trackMetricEvent('chat_retry', { surface, mode: surfaceState.lastChatRequest.mode });
+    await ask(surface, surfaceState.lastChatRequest.question, {
+      mode: surfaceState.lastChatRequest.mode,
+      context: surfaceState.lastChatRequest.context,
+    });
+  };
+
+  const clearConversation = (surface: ChatSurface) => {
+    setChatState(prev => ({
+      ...prev,
+      [surface]: {
+        ...prev[surface],
+        chatLog: [],
+        lastChatRequest: null,
+      },
+    }));
+  };
+
+  const handleChat = async (pageContext?: string) => {
+    const ctx: ChatContextPayload =
+      pageContext ? { pageTitle: pageContext, nodeId: pageContext } : chatState.main.chatContext;
+    const mode: ChatMode = pageContext ? 'wiki_page' : chatState.main.chatMode;
+    await ask('main', chatState.main.question, { mode, context: ctx });
   };
 
 
   const fetchWikiPages = async () => {
     try {
-      const res = await axios.get(`${API}/wiki`);
-      setWikiPages(res.data.pages || []);
-    } catch { /* ignore */ }
-  };
-
-  const openPage = async (title: string) => {
-    try {
-      const res = await axios.get(`${API}/wiki/${encodeURIComponent(title)}`);
-      setSelectedPage(res.data);
+      const res = await axios.get(`${API}/wiki/markdown-files`);
+      const pages = (res.data.pages || []).map((p: any) => ({
+        title: p.title || p.slug,
+        slug: p.slug,
+        category: p.topic_name || 'Knowledge',
+      }));
+      setWikiPages(pages);
     } catch { /* ignore */ }
   };
 
@@ -388,11 +596,38 @@ export const WikiProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setLoading(false);
   };
 
-  const fetchGraphData = async () => {
+  const fetchGraphData = async (options: {
+    focus?: string;
+    depth?: number;
+    q?: string;
+    includeGhost?: boolean;
+    minDegree?: number;
+    limitNodes?: number;
+    limitLinks?: number;
+  } = {}) => {
+    setGraphLoading(true);
+    setGraphError(null);
     try {
-      const res = await axios.get(`${API}/graph`);
-      setGraphData(res.data);
-    } catch { /* ignore */ }
+      const params: Record<string, string | number> = {};
+      if (options.focus) params.focus = options.focus;
+      if (typeof options.depth === 'number') params.depth = options.depth;
+      if (typeof options.includeGhost === 'boolean') params.include_ghost = String(options.includeGhost);
+      if (typeof options.minDegree === 'number') params.min_degree = options.minDegree;
+      if (typeof options.limitNodes === 'number') params.limit_nodes = options.limitNodes;
+      if (typeof options.limitLinks === 'number') params.limit_links = options.limitLinks;
+
+      const res = await axios.get(`${API}/knowledge/graph`, { params });
+      setGraphData({ nodes: res.data.nodes || [], links: res.data.links || [] });
+      setGraphStats(res.data.stats || null);
+      setGraphMeta(res.data.meta || null);
+    } catch {
+      setGraphError('Failed to load graph data.');
+      setGraphData({ nodes: [], links: [] });
+      setGraphStats(null);
+      setGraphMeta(null);
+    } finally {
+      setGraphLoading(false);
+    }
   };
 
   const fetchSuggestions = async (title: string) => {
@@ -407,63 +642,73 @@ export const WikiProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
-  const addLinkToPage = async (pageTitle: string, targetTitle: string) => {
-    // In a real editor, this would update the state and the file.
-    // For now, we prepend it to the content if possible, or just log.
-    if (!selectedPage || selectedPage.title !== pageTitle) return;
-    
-    setLoading(true);
-    try {
-      const newContent = `${selectedPage.content}\n\n## Related\n- [[${targetTitle}]]`;
-      await axios.post(`${API}/approve`, { 
-        changes: { [pageTitle]: newContent } 
-      });
-      await openPage(pageTitle); // Refresh
-      await fetchSuggestions(pageTitle); // Refresh suggestions
-    } catch {
-      alert('Failed to add link');
-    } finally {
-      setLoading(false);
-    }
-  };
 
-  const fetchOpenClawProposals = async () => {
+  const runLint = async () => {
     try {
-      const res = await axios.get(`${API}/openclaw/proposals`);
-      setOpenClawProposals(res.data.proposals || []);
+      await axios.post(`${API}/lint/run`, { async: true });
+      const statusRes = await axios.get(`${API}/lint/status`);
+      setLintRuns(statusRes.data.runs || []);
     } catch { /* ignore */ }
   };
 
-  const handleOpenClawProposal = async (id: number, action: 'apply' | 'dismiss') => {
-    setLoading(true);
+  const fetchLintFindings = async (runId?: number) => {
     try {
-      await axios.post(`${API}/openclaw/handle`, { id, action });
-      await fetchOpenClawProposals();
-      await fetchWikiPages();
-    } catch { 
-      alert('Failed to handle proposal');
-    } finally {
-      setLoading(false);
-    }
+      const res = await axios.get(`${API}/lint/findings`, { params: runId ? { run_id: runId } : {} });
+      setLintFindings(res.data.findings || []);
+    } catch { /* ignore */ }
   };
 
-  const triggerEvolution = async () => {
-    setEvolutionLoading(true);
+  const fetchRemediationTasks = async () => {
     try {
-      await axios.post(`${API}/openclaw/evolve`);
-      await fetchOpenClawProposals();
-    } catch {
-      alert('Evolution engine failed to start');
-    } finally {
-      setEvolutionLoading(false);
-    }
+      const res = await axios.get(`${API}/remediation/tasks`);
+      setRemediationTasks(res.data.tasks || []);
+    } catch { /* ignore */ }
   };
+
+  const updateRemediationTask = async (id: number, status: string) => {
+    try {
+      await axios.patch(`${API}/remediation/update`, { id, status });
+      await fetchRemediationTasks();
+    } catch { /* ignore */ }
+  };
+
+  const fetchQueryArtifacts = async () => {
+    try {
+      const res = await axios.get(`${API}/query_artifacts`);
+      setQueryArtifacts(res.data.artifacts || []);
+    } catch { /* ignore */ }
+  };
+
+  const undoQueryArtifact = async (artifactId: number) => {
+    try {
+      await axios.post(`${API}/query_artifacts/undo`, { artifact_id: artifactId });
+      await fetchQueryArtifacts();
+    } catch { /* ignore */ }
+  };
+
+
+  const question = chatState.main.question;
+  const setQuestion = (q: string) => setQuestionForSurface('main', q);
+  const chatLog = chatState.main.chatLog;
+  const chatMetaLog = chatState.main.chatLog.filter((m) => m.role === 'ai').map((m) => m.meta || {});
+  const chatMode = chatState.main.chatMode;
+  const chatContext = chatState.main.chatContext;
+  const chatLoading = chatState.main.chatLoading;
+  const chatEndRef = mainChatEndRef;
+  const getChatState = (surface: ChatSurface) => ({
+    question: chatState[surface].question,
+    chatLog: chatState[surface].chatLog,
+    chatLoading: chatState[surface].chatLoading,
+    chatMode: chatState[surface].chatMode,
+    chatContext: chatState[surface].chatContext,
+    chatEndRef: getChatEndRef(surface),
+  });
 
   return (
     <WikiContext.Provider value={{
       file, setFile, url, setUrl, autoApprove, setAutoApprove, loading, result, setResult, handleIngest, handleApprove,
-      question, setQuestion, chatLog, chatLoading, chatEndRef, handleChat,
-      wikiPages, selectedPage, setSelectedPage, fetchWikiPages, openPage,
+      question, setQuestion, chatLog, chatMetaLog, chatMode, chatContext, chatLoading, chatEndRef, handleChat, ask, retry, clearConversation, setContext, getChatState, setQuestionForSurface,
+      wikiPages, fetchWikiPages,
       gitHistory, fetchHistory, handleRevert,
       pullRequests, fetchPullRequests, approvePullRequest,
       contradictions, fetchContradictions, resolveContradiction, criticalPages, newCritical, setNewCritical, addCritical, removeCritical,
@@ -471,9 +716,11 @@ export const WikiProvider: React.FC<{ children: React.ReactNode }> = ({ children
       modalDiff, setModalDiff, mergeModalOpen, setMergeModalOpen,
       presence, trackActivity, fetchPresence,
       locks, fetchLocks, handleLock, handleUnlock,
-      graphData, fetchGraphData,
-      suggestedLinks, suggestionsLoading, fetchSuggestions, addLinkToPage,
-      openClawProposals, fetchOpenClawProposals, handleOpenClawProposal, triggerEvolution, evolutionLoading
+      graphData, graphStats, graphMeta, graphLoading, graphError, fetchGraphData, trackMetricEvent,
+      suggestedLinks, suggestionsLoading, fetchSuggestions,
+      runLint, lintRuns, lintFindings, remediationTasks, fetchLintFindings, fetchRemediationTasks, updateRemediationTask,
+      fetchQueryArtifacts, queryArtifacts, undoQueryArtifact,
+      zenMode, setZenMode
     }}>
       {children}
     </WikiContext.Provider>

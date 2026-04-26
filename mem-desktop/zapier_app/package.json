@@ -1,9 +1,0 @@
-{
-  "name": "memos-zapier-integration",
-  "version": "1.0.0",
-  "private": true,
-  "main": "index.js",
-  "dependencies": {
-    "zapier-platform-core": "^11.0.0"
-  }
-}

@@ -4,17 +4,104 @@ from rest_framework import status
 import json
 import re
 import time
+import hashlib
 from pathlib import Path
 from urllib.parse import urlparse
 from django.conf import settings
+from django.utils.text import slugify
 from git import Repo
 
 from .extractors import TextExtractor
 from .processor import ingest_processor
 from .wiki_context import wiki_context
-from .groq_client import groq_client
-from .models import Source, Contradiction, CriticalPage, PageSource, OpenClawProposal
-from .openclaw import open_claw
+from .ai_client import memos_ai as ai_client
+from .models import (
+    Source,
+    Contradiction,
+    PageSource,
+    RawArtifactLedger,
+)
+from .semantic_index import semantic_index
+from knowledge.models import WorkspacePage, PageBlock
+from knowledge.wiki_projection import write_page_to_file, sync_wiki_to_db
+from .views_lint import (
+    run_lint,
+    lint_status,
+    lint_findings,
+    lint_autofix,
+    lint_research_prompts,
+    remediation_tasks,
+    remediation_update,
+    query_artifacts,
+    undo_query_artifact,
+)
+from .views_collab import (
+    manage_team,
+    manage_locks,
+    sync_status,
+    get_git_conflicts,
+    resolve_conflict,
+    track_activity,
+    get_presence,
+)
+
+WORKSPACE_ROOT = Path(settings.WORKSPACE_ROOT)
+WORKSPACE_WIKI_DIR = Path(settings.WORKSPACE_WIKI_DIR)
+WORKSPACE_RAW_DIR = Path(settings.WORKSPACE_RAW_DIR)
+
+
+def _artifact_slug(question: str):
+    base = slugify(question[:80]) or f"analysis-{int(time.time())}"
+    return f"analysis-{base}-{int(time.time())}"
+
+
+def _persist_query_artifact(question: str, answer: str, citations: list, confidence: str, page_context: str = ""):
+    slug = _artifact_slug(question)
+    title = f"Analysis {time.strftime('%Y-%m-%d %H:%M')}"
+    page, _ = WorkspacePage.objects.get_or_create(
+        slug=slug,
+        defaults={
+            "title": title,
+            "description": "Auto-saved from query response.",
+            "page_type": "analysis",
+            "status": "active",
+        },
+    )
+    page.blocks.all().delete()
+    PageBlock.objects.create(page=page, block_type="heading", content_json={"text": title}, order_index=0)
+    PageBlock.objects.create(page=page, block_type="paragraph", content_json={"text": answer}, order_index=1)
+    write_page_to_file(page)
+    from .models import QueryArtifact, ArtifactRevision
+
+    artifact = QueryArtifact.objects.create(
+        query_text=question,
+        page_context=page_context,
+        artifact_slug=slug,
+        artifact_title=title,
+        confidence=confidence,
+        citations_json=citations,
+        is_active=True,
+    )
+    ArtifactRevision.objects.create(
+        artifact=artifact,
+        content=answer,
+        note="initial auto-compounded answer",
+    )
+    return artifact
+
+
+def _append_metric_event(event_name, payload=None):
+    """Append KPI/telemetry event to local workspace metrics log."""
+    metrics_dir = WORKSPACE_ROOT / "_metrics"
+    metrics_dir.mkdir(parents=True, exist_ok=True)
+    events_file = metrics_dir / "events.jsonl"
+    event = {
+        "event": event_name,
+        "timestamp": time.time(),
+        "payload": payload or {},
+    }
+    with events_file.open("a", encoding="utf-8") as f:
+        f.write(json.dumps(event, ensure_ascii=True) + "\n")
 
 
 # ---------------------------------------------------------------------------
@@ -31,8 +118,7 @@ def ingest_file(request):
         url:          web URL
         auto_approve: "true" / "false"  (default false)
     """
-    workspace_root = Path(settings.BASE_DIR).parent / "workspace"
-    raw_dir = workspace_root / "raw"
+    raw_dir = WORKSPACE_RAW_DIR
     raw_dir.mkdir(parents=True, exist_ok=True)
 
     auto_approve = str(request.data.get("auto_approve", "false")).lower() == "true"
@@ -46,6 +132,15 @@ def ingest_file(request):
                 f.write(chunk)
 
         result = ingest_processor.process_file(file_path, auto_approve=auto_approve)
+        _append_metric_event(
+            "ingest_file_completed",
+            {
+                "source_type": "file",
+                "auto_approve": auto_approve,
+                "has_error": bool(result.get("error")) if isinstance(result, dict) else False,
+                "status": result.get("status") if isinstance(result, dict) else "unknown",
+            },
+        )
         return Response(result, status=status.HTTP_200_OK)
 
     # --- URL ---
@@ -57,16 +152,47 @@ def ingest_file(request):
             return Response({"error": str(exc)}, status=status.HTTP_400_BAD_REQUEST)
 
         domain = urlparse(url).netloc.replace(".", "_")
-        filename = f"web_{domain}_{abs(hash(url)) % 100000}.md"
+        url_hash = hashlib.sha256(url.encode("utf-8")).hexdigest()[:16]
+        filename = f"web_{domain}_{url_hash}.md"
         file_path = raw_dir / filename
         file_path.write_text(f"# Source: {url}\n\n{text}", encoding="utf-8")
 
         result = ingest_processor.process_file(file_path, auto_approve=auto_approve)
+        _append_metric_event(
+            "ingest_file_completed",
+            {
+                "source_type": "url",
+                "auto_approve": auto_approve,
+                "has_error": bool(result.get("error")) if isinstance(result, dict) else False,
+                "status": result.get("status") if isinstance(result, dict) else "unknown",
+            },
+        )
         return Response(result, status=status.HTTP_200_OK)
 
     return Response(
         {"error": "No file or URL provided"}, status=status.HTTP_400_BAD_REQUEST
     )
+
+
+@api_view(["POST"])
+def ingest_text(request):
+    """Ingest plain text content from wiki-side new-ingest flows."""
+    text = str(request.data.get("text", "")).strip()
+    title = str(request.data.get("title", "")).strip() or f"Ingested Note {int(time.time())}"
+    auto_approve = str(request.data.get("auto_approve", "true")).lower() == "true"
+    if not text:
+        return Response({"error": "No text provided"}, status=status.HTTP_400_BAD_REQUEST)
+    result = ingest_processor.process_text(text, title=title, auto_approve=auto_approve)
+    _append_metric_event(
+        "ingest_text_completed",
+        {
+            "title": title,
+            "auto_approve": auto_approve,
+            "has_error": bool(result.get("error")) if isinstance(result, dict) else False,
+            "status": result.get("status") if isinstance(result, dict) else "unknown",
+        },
+    )
+    return Response(result, status=status.HTTP_200_OK)
 
 
 # ---------------------------------------------------------------------------
@@ -87,7 +213,25 @@ def approve_changes(request):
             {"error": "No changes provided"}, status=status.HTTP_400_BAD_REQUEST
         )
 
+    policy = staged.get("policy", {})
+    if policy.get("gate_level") == "hard" and not policy.get("passed"):
+        return Response(
+            {
+                "error": "Policy hard-gate failed.",
+                "policy": policy,
+            },
+            status=status.HTTP_409_CONFLICT,
+        )
     result = ingest_processor.apply_changes(staged)
+    if policy:
+        result["policy"] = policy
+    _append_metric_event(
+        "approve_changes_completed",
+        {
+            "has_error": bool(result.get("error")) if isinstance(result, dict) else False,
+            "status": result.get("status") if isinstance(result, dict) else "unknown",
+        },
+    )
     return Response(result, status=status.HTTP_200_OK)
 
 
@@ -111,6 +255,7 @@ def chat_query(request):
         )
 
     page_title = request.data.get("page_context", "").strip()
+    surface = str(request.data.get("surface", "main")).strip() or "main"
 
     context = ""
     if page_title:
@@ -148,8 +293,82 @@ def chat_query(request):
         if not context:
             context = wiki_context.get_index()
 
-    answer = groq_client.answer_question(question, wiki_pages_content=context)
-    return Response({"answer": answer}, status=status.HTTP_200_OK)
+    answer = ai_client.answer_question(question, wiki_pages_content=context)
+    citations = []
+
+    def _build_citation(title, snippet, relevance_score):
+        citation = {
+            "page_title": title,
+            "snippet": snippet,
+            "type": "wiki_page",
+            "relevance_score": relevance_score,
+        }
+        try:
+            source_link = PageSource.objects.filter(page_title__iexact=title).select_related("source").order_by("-created_at").first()
+            if source_link:
+                citation.update({
+                    "source_type": source_link.source.source_type,
+                    "source_name": source_link.source.name,
+                    "source_path_or_url": source_link.source.path_or_url,
+                    "page_reference": source_link.page_reference,
+                    "evidence_snippet": source_link.chunk_text[:240] if source_link.chunk_text else snippet,
+                })
+            else:
+                citation["evidence_snippet"] = snippet
+        except Exception:
+            citation["evidence_snippet"] = snippet
+        return citation
+
+    if page_title:
+        snippet = (context[:220] + "...") if len(context) > 220 else context
+        citations.append(_build_citation(page_title, snippet, 0.95))
+    else:
+        # Best-effort citation extraction from context headers.
+        seen = set()
+        for idx, match in enumerate(re.findall(r"\[\[([^\]]+)\]\]", context)):
+            if match in seen:
+                continue
+            seen.add(match)
+            citations.append(_build_citation(match, f"Referenced from workspace context: {match}", max(0.4, 0.85 - (idx * 0.15))))
+            if len(citations) >= 3:
+                break
+    confidence = "high" if page_title else ("medium" if len(citations) >= 2 else "low")
+    reasoning_summary = "Answer grounded in local wiki context and related pages."
+    artifact = None
+    if getattr(settings, "AUTO_QUERY_COMPOUND_ENABLED", True):
+        try:
+            sync_wiki_to_db()
+            artifact = _persist_query_artifact(
+                question=question,
+                answer=answer,
+                citations=citations,
+                confidence=confidence,
+                page_context=page_title,
+            )
+        except Exception:
+            artifact = None
+    _append_metric_event(
+        "chat_query_completed",
+        {"with_page_context": bool(page_title), "question_len": len(question), "surface": surface},
+    )
+    return Response(
+        {
+            "answer": answer,
+            "citations": citations,
+            "confidence": confidence,
+            "reasoning_summary": reasoning_summary,
+            "artifact": (
+                {
+                    "id": artifact.id,
+                    "slug": artifact.artifact_slug,
+                    "title": artifact.artifact_title,
+                }
+                if artifact
+                else None
+            ),
+        },
+        status=status.HTTP_200_OK,
+    )
 
 
 
@@ -157,145 +376,6 @@ def chat_query(request):
 # Wiki listing (for sidebar / explorer)
 # ---------------------------------------------------------------------------
 
-@api_view(["GET"])
-def list_wiki_pages(request):
-    """Return all wiki page titles, properties, and a short description"""
-    pages = []
-    wiki_dir = Path(settings.BASE_DIR).parent / "workspace" / "wiki"
-    if wiki_dir.exists():
-        for md_file in sorted(wiki_dir.glob("*.md")):
-            if md_file.name in ("index.md", "log.md"):
-                continue
-            content = md_file.read_text(encoding="utf-8")
-            
-            desc = ""
-            page_type = "concept"
-            page_category = "Miscellaneous"
-            
-            # Extract category
-            cat_match = re.search(r"^category:\s*(.+)$", content, re.MULTILINE)
-            if cat_match:
-                page_category = cat_match.group(1).strip().strip("'").strip('"')
-            
-            # Extract type
-            type_match = re.search(r"^type:\s*(.+)$", content, re.MULTILINE)
-            if type_match:
-                nt = type_match.group(1).strip().lower()
-                page_type = nt.strip("'").strip('"')
-            else:
-                if md_file.stem.lower().startswith("source_") or "Source: " in content:
-                    page_type = "source"
-                elif any(x in md_file.stem.lower() for x in ["person", "org", "place", "event"]):
-                    page_type = "entity"
-
-            for line in content.splitlines():
-                if line.startswith("# ") and len(line) > 2:
-                    desc = line[2:].strip()[:120]
-                    break
-            pages.append({"title": md_file.stem, "description": desc, "type": page_type, "category": page_category})
-
-    return Response({"pages": pages}, status=status.HTTP_200_OK)
-
-
-@api_view(["GET", "PUT"])
-def get_wiki_page(request, title):
-    """Return the full markdown content of a single wiki page with provenance metadata."""
-    wiki_dir = Path(settings.BASE_DIR).parent / "workspace" / "wiki"
-    
-    # Handle both raw titles and slugs
-    safe_slug = title.replace(" ", "_")
-    file_path = wiki_dir / f"{safe_slug}.md"
-    
-    # If not found by slug, try to search the files directly
-    if not file_path.exists():
-        found = False
-        for md_file in wiki_dir.glob("*.md"):
-            if title.lower() in md_file.stem.lower().replace("_", " "):
-                file_path = md_file
-                found = True
-                break
-        if not found:
-            return Response({"error": "Page not found"}, status=status.HTTP_404_NOT_FOUND)
-
-    if request.method == "GET":
-        content = file_path.read_text(encoding="utf-8")
-        
-        # Extract metadata from frontmatter if it exists
-        metadata = {}
-        main_content = content
-        if content.startswith("---"):
-            parts = content.split("---", 2)
-            if len(parts) >= 3:
-                fm = parts[1]
-                main_content = parts[2].strip()
-                
-                # Parse frontmatter fields
-                title_match = re.search(r"^title:\s*(.+)$", fm, re.MULTILINE)
-                if title_match: metadata["title"] = title_match.group(1).strip()
-                
-                cat_match = re.search(r"^category:\s*(.+)$", fm, re.MULTILINE)
-                if cat_match: metadata["category"] = cat_match.group(1).strip()
-                
-                type_match = re.search(r"^type:\s*(.+)$", fm, re.MULTILINE)
-                if type_match: metadata["type"] = type_match.group(1).strip()
-                
-                sources_match = re.search(r"^sources:\s*\[(.*?)\]", fm, re.MULTILINE | re.DOTALL)
-                if sources_match:
-                    srcs = [s.strip().strip("'").strip('"') for s in sources_match.group(1).split(',')]
-                    metadata["sources_list"] = [s for s in srcs if s]
-
-        actual_title = metadata.get("title", file_path.stem.replace("_", " "))
-        
-        # Query Database for Provenance
-        provenance = []
-        try:
-            page_sources = PageSource.objects.filter(page_title__iexact=actual_title).select_related('source').order_by('-created_at')
-            for ps in page_sources:
-                provenance.append({
-                    "source_name": ps.source.name,
-                    "source_type": ps.source.source_type,
-                    "page_reference": ps.page_reference,
-                    "chunk_text": ps.chunk_text,
-                    "timestamp": ps.created_at.isoformat()
-                })
-        except Exception as e:
-            print(f"Error fetching provenance: {e}")
-
-        return Response({
-            "title": actual_title,
-            "content": main_content,
-            "category": metadata.get("category", "Miscellaneous"),
-            "type": metadata.get("type", "concept"),
-            "frontmatter_sources": metadata.get("sources_list", []),
-            "provenance": provenance
-        }, status=status.HTTP_200_OK)
-
-    elif request.method == "PUT":
-        content = request.data.get("content")
-        if not content:
-            return Response({"error": "Content required"}, status=status.HTTP_400_BAD_REQUEST)
-        
-        # Write the content to the file
-        file_path.write_text(content, encoding="utf-8")
-        
-        # Git commit
-        try:
-            from git import Repo
-            repo = Repo(wiki_dir)
-            repo.git.add(str(file_path))
-            repo.index.commit(f"Updated [[{title}]] via API")
-        except Exception as e:
-            print(f"Git commit failed: {e}")
-        
-        # Rebuild indexes
-        try:
-            ingest_processor._rebuild_text_index()
-            from .semantic_index import semantic_index
-            semantic_index.index_all()
-        except Exception as e:
-            print(f"Index rebuild failed: {e}")
-        
-        return Response({"status": "updated"}, status=status.HTTP_200_OK)
 
 
 # ---------------------------------------------------------------------------
@@ -312,7 +392,7 @@ def create_snapshot(request):
     # Sanitize name for git tag
     tag_name = name.strip().replace(" ", "_").replace("/", "-")
     
-    wiki_dir = Path(settings.BASE_DIR).parent / "workspace" / "wiki"
+    wiki_dir = WORKSPACE_WIKI_DIR
     try:
         repo = Repo(wiki_dir)
         new_tag = repo.create_tag(tag_name, message=f"Snapshot: {name}")
@@ -323,7 +403,7 @@ def create_snapshot(request):
 @api_view(["GET"])
 def list_snapshots(request):
     """List all created milestones (git tags)"""
-    wiki_dir = Path(settings.BASE_DIR).parent / "workspace" / "wiki"
+    wiki_dir = WORKSPACE_WIKI_DIR
     try:
         repo = Repo(wiki_dir)
         tags = []
@@ -346,7 +426,7 @@ def list_snapshots(request):
 def get_git_history(request):
     """Return the recent git commit history, optionally filtered by page"""
     page = request.query_params.get("page")
-    wiki_dir = Path(settings.BASE_DIR).parent / "workspace" / "wiki"
+    wiki_dir = WORKSPACE_WIKI_DIR
     try:
         repo = Repo(wiki_dir)
         commits = []
@@ -374,7 +454,7 @@ def get_git_history(request):
 @api_view(["GET"])
 def list_pull_requests(request):
     """List all unmerged ingest branches"""
-    wiki_dir = Path(settings.BASE_DIR).parent / "workspace" / "wiki"
+    wiki_dir = WORKSPACE_WIKI_DIR
     try:
         repo = Repo(wiki_dir)
         prs = []
@@ -399,7 +479,7 @@ def list_pull_requests(request):
 def get_pull_request_diff(request):
     """Get the diff between an ingest branch and main"""
     branch = request.query_params.get("branch")
-    wiki_dir = Path(settings.BASE_DIR).parent / "workspace" / "wiki"
+    wiki_dir = WORKSPACE_WIKI_DIR
     if not branch:
         return Response({"error": "No branch provided"}, status=400)
         
@@ -438,7 +518,7 @@ def revert_version(request):
     if not commit_hash:
         return Response({"error": "No commit hash provided"}, status=status.HTTP_400_BAD_REQUEST)
 
-    wiki_dir = Path(settings.BASE_DIR).parent / "workspace" / "wiki"
+    wiki_dir = WORKSPACE_WIKI_DIR
     try:
         repo = Repo(wiki_dir)
         # We do a revert by checking out the files and then committing that state
@@ -463,7 +543,7 @@ def revert_version(request):
 @api_view(["GET", "POST", "DELETE"])
 def manage_critical_pages(request):
     """Manage critical pages via the _config/critical_pages.txt file"""
-    wiki_dir = Path(settings.BASE_DIR).parent / "workspace" / "wiki"
+    wiki_dir = WORKSPACE_WIKI_DIR
     config_path = wiki_dir / "_config" / "critical_pages.txt"
     config_path.parent.mkdir(parents=True, exist_ok=True)
     if not config_path.exists():
@@ -524,14 +604,14 @@ def list_contradictions(request):
             
             if action == "merge":
                 # AI driven reconciliation
-                reconciled_text = groq_client.reconcile_contradiction(
+                reconciled_text = ai_client.reconcile_contradiction(
                     page_title=c.existing_page,
                     existing_claim=c.existing_claim,
                     new_claim=c.new_claim
                 )
                 
                 # Apply to wiki page
-                wiki_dir = Path(settings.BASE_DIR).parent / "workspace" / "wiki"
+                wiki_dir = WORKSPACE_WIKI_DIR
                 slug = c.existing_page.replace(" ", "_")
                 file_path = wiki_dir / f"{slug}.md"
                 
@@ -567,127 +647,8 @@ def list_contradictions(request):
 
 
 
-# ---------------------------------------------------------------------------
-# Phase 4: Team Collaboration
-# ---------------------------------------------------------------------------
-
-@api_view(["GET", "POST"])
-def manage_team(request):
-    """Get or update team roles from _config/team.json"""
-    wiki_dir = Path(settings.BASE_DIR).parent / "workspace" / "wiki"
-    team_file = wiki_dir / "_config" / "team.json"
-    team_file.parent.mkdir(parents=True, exist_ok=True)
-
-    if request.method == "GET":
-        if team_file.exists():
-            try:
-                return Response(json.loads(team_file.read_text()), status=200)
-            except Exception:
-                pass
-        return Response({"admins": [], "editors": [], "contributors": [], "viewers": []}, status=200)
-
-    if request.method == "POST":
-        # Only admins can update (logic simplified for now)
-        data = request.data
-        team_file.write_text(json.dumps(data, indent=2))
-        return Response({"status": "updated"}, status=200)
-
-
-@api_view(["GET", "POST"])
-def manage_locks(request):
-    """Manage local locks for pages"""
-    wiki_dir = Path(settings.BASE_DIR).parent / "workspace" / "wiki"
-    locks_dir = wiki_dir / "_locks"
-    locks_dir.mkdir(parents=True, exist_ok=True)
-
-    if request.method == "GET":
-        locks = []
-        for lock_file in locks_dir.glob("*.lock"):
-            try:
-                locks.append({
-                    "page": lock_file.stem,
-                    "owner": lock_file.read_text().strip(),
-                    "timestamp": lock_file.stat().st_mtime
-                })
-            except Exception:
-                pass
-        return Response({"locks": locks}, status=200)
-
-    if request.method == "POST":
-        page = request.data.get("page")
-        force = request.data.get("force", False)
-        action = request.data.get("action") # 'lock', 'unlock'
-        user = request.data.get("user", "unknown")
-        
-        lock_file = locks_dir / f"{page}.lock"
-        
-        if action == "lock":
-            if lock_file.exists() and not force:
-                owner = lock_file.read_text().strip()
-                if owner != user:
-                    return Response({"error": "Already locked", "owner": owner}, status=409)
-            lock_file.write_text(user)
-            return Response({"status": "locked", "owner": user}, status=200)
-            
-        if action == "unlock":
-            if lock_file.exists():
-                owner = lock_file.read_text().strip()
-                if owner != user and not force:
-                    return Response({"error": "Cannot unlock page owned by another user", "owner": owner}, status=403)
-                lock_file.unlink()
-            return Response({"status": "unlocked"}, status=200)
-        
-        return Response({"error": "Invalid action"}, status=400)
-
-
-@api_view(["GET"])
-def sync_status(request):
-    """Check if local wiki is ahead/behind remote"""
-    wiki_dir = Path(settings.BASE_DIR).parent / "workspace" / "wiki"
-    try:
-        repo = Repo(wiki_dir)
-        if not repo.remotes:
-            return Response({"status": "no_remote"}, status=200)
-        
-        # Try to fetch
-        try:
-            repo.remotes.origin.fetch()
-        except Exception:
-            # might have no network
-            pass
-        
-        local_ref = repo.head.commit
-        
-        # Determine remote branch (master or main)
-        remote_ref = None
-        main_branch = None
-        for branch in ['main', 'master']:
-            if branch in repo.heads:
-                main_branch = branch
-                # Check for corresponding remote branch
-                remote_name = f'origin/{branch}'
-                if remote_name in [ref.name for ref in repo.remotes.origin.refs]:
-                    remote_ref = repo.remotes.origin.refs[branch].commit
-                    break
-
-        if not remote_ref:
-            return Response({"status": "no_remote_branch", "message": "Remote exists but target branch (main/master) not found"}, status=200)
-
-        diff_behind = list(repo.iter_commits(f"{main_branch}..origin/{main_branch}"))
-        diff_ahead = list(repo.iter_commits(f"origin/{main_branch}..{main_branch}"))
-
-        is_behind = len(diff_behind) > 0
-        is_ahead = len(diff_ahead) > 0
-
-        return Response({
-            "status": "diverged" if is_behind and is_ahead else ("behind" if is_behind else ("ahead" if is_ahead else "synced")),
-            "behind_by": len(diff_behind),
-            "ahead_by": len(diff_ahead),
-            "remote_url": repo.remotes.origin.url,
-            "branch": main_branch
-        }, status=200)
-    except Exception as e:
-        return Response({"error": str(e)}, status=500)
+# Collaboration and lint/query artifact operational views were moved to
+# `views_collab.py` and `views_lint.py` to keep this file focused.
 
 @api_view(['GET'])
 def get_suggestions(request):
@@ -711,7 +672,7 @@ def synthesize_hub(request):
         return Response({"error": "Missing hub title"}, status=400)
         
     from .wiki_context import wiki_context
-    wiki_dir = Path(settings.BASE_DIR).parent / "workspace" / "wiki"
+    wiki_dir = WORKSPACE_WIKI_DIR
     
     # 1. Identify connected nodes (poor man's graph traversal)
     # Re-reading all files to find links to this hub
@@ -735,8 +696,7 @@ Your task: Write a 2-3 sentence 'Explainer' that synthesizes WHY these pages are
 Focus on high-level structural intelligence.
 """
     try:
-        response = groq_client.client.chat.completions.create(
-            model=groq_client.model,
+        synthesis = ai_client.chat_completion(
             messages=[
                 {"role": "system", "content": "You synthesize complex conceptual relationships in a knowledge graph."},
                 {"role": "user", "content": prompt},
@@ -744,264 +704,10 @@ Focus on high-level structural intelligence.
             temperature=0.3,
             max_tokens=500
         )
-        synthesis = response.choices[0].message.content
         return Response({"synthesis": synthesis}, status=200)
     except Exception as e:
         return Response({"error": str(e)}, status=500)
 
-@api_view(['POST'])
-def reorganize_categories(request):
-    """
-    Triggers a bulk re-organization of wiki categories using the LLM.
-    Optionally previews changes before applying.
-    """
-    # Logic for semantic categorization will go here in Phase 5
-    return Response({"status": "feature_pending", "message": "Semantic Reorganization is being implemented."}, status=202)
-
-
-@api_view(["GET"])
-def get_git_conflicts(request):
-    """Return list of files that currently have git merge conflicts"""
-    wiki_dir = Path(settings.BASE_DIR).parent / "workspace" / "wiki"
-    try:
-        repo = Repo(wiki_dir)
-        unmerged = repo.index.unmerged_blobs()
-        conflicts = []
-        for filename, blobs in unmerged.items():
-            # blobs is a list of (stage, blob)
-            # stage 1: common ancestor, 2: local (ours), 3: remote (theirs)
-            conflict_data = {"filename": filename, "ours": "", "theirs": "", "base": ""}
-            for stage, blob in blobs:
-                try:
-                    content = blob.data_stream.read().decode('utf-8')
-                    if stage == 1: conflict_data["base"] = content
-                    if stage == 2: conflict_data["ours"] = content
-                    if stage == 3: conflict_data["theirs"] = content
-                except Exception:
-                    pass
-            conflicts.append(conflict_data)
-        
-        return Response({"conflicts": conflicts}, status=200)
-    except Exception as e:
-        return Response({"error": str(e)}, status=500)
-
-
-@api_view(["POST"])
-def resolve_conflict(request):
-    """Resolve a conflict by choosing ours, theirs, or providing merged content"""
-    filename = request.data.get("filename")
-    action = request.data.get("action") # 'ours', 'theirs', 'merged'
-    content = request.data.get("content")
-    
-    wiki_dir = Path(settings.BASE_DIR).parent / "workspace" / "wiki"
-    try:
-        repo = Repo(wiki_dir)
-        
-        if action == "ours":
-            repo.git.checkout("--ours", filename)
-        elif action == "theirs":
-            repo.git.checkout("--theirs", filename)
-        elif action == "merged":
-            filepath = wiki_dir / filename
-            filepath.write_text(content, encoding='utf-8')
-            repo.index.add([filename])
-        
-        repo.index.add([filename])
-        
-        # If no more conflicts, check if we can finish the merge
-        if not repo.index.unmerged_blobs():
-            try:
-                repo.index.commit("Resolved merge conflicts via Mem Visual Merge Tool")
-            except Exception:
-                pass # Might already be committed or nothing to commit
-            
-        return Response({"status": "resolved"}, status=200)
-    except Exception as e:
-        return Response({"error": str(e)}, status=500)
-
-@api_view(["POST"])
-def track_activity(request):
-    """Heartbeat to show a user is looking at a page"""
-    page = request.data.get("page")
-    user = request.data.get("user", "Anonymous")
-    
-    wiki_dir = Path(settings.BASE_DIR).parent / "workspace" / "wiki"
-    activity_dir = wiki_dir / "_activity"
-    activity_dir.mkdir(parents=True, exist_ok=True)
-    
-    # Store user and timestamp
-    activity_file = activity_dir / f"{page}.activity"
-    try:
-        activity_data = {
-            "user": user,
-            "timestamp": time.time()
-        }
-        activity_file.write_text(json.dumps(activity_data))
-        return Response({"status": "tracked"}, status=200)
-    except Exception as e:
-        return Response({"error": str(e)}, status=500)
-
-
-@api_view(["GET"])
-def get_presence(request):
-    """Get active users across all pages based on recent activity"""
-    wiki_dir = Path(settings.BASE_DIR).parent / "workspace" / "wiki"
-    activity_dir = wiki_dir / "_activity"
-    presence = {}
-    
-    now = time.time()
-    
-    if activity_dir.exists():
-        for act_file in activity_dir.glob("*.activity"):
-            try:
-                data = json.loads(act_file.read_text())
-                if now - data.get("timestamp", 0) < 60: # 1 minute timeout
-                    presence[act_file.stem] = {
-                        "user": data.get("user", "Anonymous"),
-                        "last_seen": data.get("timestamp", 0)
-                    }
-            except Exception:
-                # Clean up corrupted or old activity files
-                if now - act_file.stat().st_mtime > 300:
-                    try: act_file.unlink() 
-                    except: pass
-    
-    return Response({"presence": presence}, status=200)
-
-@api_view(["GET"])
-
-def get_graph_data(request):
-    """
-    Build a network graph of the wiki based on [[Internal Links]].
-    Includes Ghost Nodes (mentions of non-existent pages).
-    Returns { nodes: [...], links: [...] }
-    """
-    wiki_dir = Path(settings.BASE_DIR).parent / "workspace" / "wiki"
-    nodes = []
-    links = []
-    
-    if not wiki_dir.exists():
-        return Response({"nodes": [], "links": []})
-
-    # 1. Collect all EXISTING nodes first
-    all_files = list(wiki_dir.glob("*.md"))
-    for md_file in all_files:
-        if md_file.name in ("index.md", "log.md"):
-            continue
-        
-        title = md_file.stem
-        content = md_file.read_text(encoding="utf-8")
-        
-        # Heuristic for node type based on frontmatter
-        node_type = "concept"
-        type_match = re.search(r"^type:\s*(.+)$", content, re.MULTILINE)
-        if type_match:
-            nt = type_match.group(1).strip().lower()
-            node_type = nt.strip("'").strip('"')
-        else:
-            if title.lower().startswith("source_") or "Source: " in content:
-                node_type = "source"
-            elif any(x in title.lower() for x in ["person", "org", "place", "event"]):
-                node_type = "entity"
-
-        nodes.append({
-            "id": title,
-            "name": title.replace("_", " "),
-            "type": node_type,
-            "val": 1.0, 
-            "summary": content[:150] + "..."
-        })
-
-    # 2. Extract links and detect Ghost Nodes
-    link_pattern = re.compile(r"\[\[([^\]]+)\]\]")
-    node_ids = {n["id"] for n in nodes}
-    ghost_nodes = {} # slug -> original_name
-    
-    for md_file in all_files:
-        if md_file.name in ("index.md", "log.md"):
-            continue
-        
-        source_title = md_file.stem
-        content = md_file.read_text(encoding="utf-8")
-        
-        # 2a. Inline wikilinks
-        matches = link_pattern.findall(content)
-        
-        for target in matches:
-            target_name = target.strip()
-            target_slug = target_name.replace(" ", "_")
-            if target_slug == source_title: continue
-
-            if target_slug in node_ids:
-                links.append({
-                    "source": source_title,
-                    "target": target_slug,
-                    "type": "relates_to"
-                })
-            else:
-                # Ghost node detection
-                if target_slug not in ghost_nodes:
-                    ghost_nodes[target_slug] = target_name
-                
-                links.append({
-                    "source": source_title,
-                    "target": target_slug,
-                    "type": "ghost_link"
-                })
-
-        # 2b. Frontmatter sources
-        src_match = re.search(r"^sources:\s*\[(.*?)\]", content, re.MULTILINE)
-        if src_match:
-            srcs_str = src_match.group(1).strip()
-            if srcs_str:
-                for src in srcs_str.split(","):
-                    src_clean = src.strip().strip("'").strip('"')
-                    if src_clean:
-                        src_slug = f"src_{src_clean.replace(' ', '_').lower()}"
-                        if src_slug not in node_ids and src_slug not in ghost_nodes:
-                            nodes.append({
-                                "id": src_slug,
-                                "name": src_clean[:40] + ("..." if len(src_clean)>40 else ""),
-                                "type": "source",
-                                "val": 1.2,
-                                "summary": f"Referenced source: {src_clean}"
-                            })
-                            node_ids.add(src_slug)
-                        
-                        links.append({
-                            "source": source_title,
-                            "target": src_slug,
-                            "type": "derived_from"
-                        })
-
-    # 3. Add discovered Ghost Nodes to the nodes list
-    for slug, name in ghost_nodes.items():
-        if slug in node_ids: continue
-        nodes.append({
-            "id": slug,
-            "name": name,
-            "type": "ghost",
-            "val": 0.8,
-            "summary": f"Mentioned in notes but no wiki page exists yet. Click to instantiate."
-        })
-        node_ids.add(slug)
-
-    # 4. Calculate Importance (Degree & Hub detection)
-    degree_map = {n["id"]: 0 for n in nodes}
-    for l in links:
-        if l["target"] in degree_map: degree_map[l["target"]] += 1
-        if l["source"] in degree_map: degree_map[l["source"]] += 0.4 
-
-    for n in nodes:
-        deg = degree_map.get(n["id"], 0)
-        n["degree"] = deg
-        n["val"] = n.get("val", 1) + (deg * 0.5)
-        if deg > 5:
-            n["is_hub"] = True
-        if deg == 0 and n["type"] != "ghost":
-            n["is_orphan"] = True
-
-    return Response({"nodes": nodes, "links": links}, status=200)
 
 
 
@@ -1017,7 +723,7 @@ def reorganize_categories(request):
     Reads all wiki pages, asks the LLM to propose a category for each,
     and returns a preview for human approval (no files are changed).
     """
-    wiki_dir = Path(settings.BASE_DIR).parent / "workspace" / "wiki"
+    wiki_dir = WORKSPACE_WIKI_DIR
     pages = []
 
     for md_file in sorted(wiki_dir.glob("*.md")):
@@ -1038,7 +744,6 @@ def reorganize_categories(request):
         })
 
     # Ask LLM to propose categories in chunks (Groq free tier has low TPM)
-    import time
     BATCH_SIZE = 40
     all_proposed = {}
 
@@ -1059,8 +764,7 @@ Page list:
 {page_list}
 """
         try:
-            response = groq_client.client.chat.completions.create(
-                model=groq_client.model,
+            response_text = ai_client.chat_completion(
                 messages=[
                     {"role": "system", "content": "You organize knowledge into semantic categories. Return only JSON."},
                     {"role": "user", "content": prompt},
@@ -1069,7 +773,7 @@ Page list:
                 max_tokens=4096,
                 response_format={"type": "json_object"},
             )
-            chunk_result = json.loads(response.choices[0].message.content)
+            chunk_result = json.loads(response_text)
             for p in chunk_result.get("pages", []):
                 all_proposed[p["title"]] = p.get("category", "Miscellaneous")
         except Exception as e:
@@ -1102,7 +806,7 @@ def apply_categories(request):
     if not assignments:
         return Response({"error": "No assignments provided"}, status=400)
 
-    wiki_dir = Path(settings.BASE_DIR).parent / "workspace" / "wiki"
+    wiki_dir = WORKSPACE_WIKI_DIR
     updated = []
 
     for item in assignments:
@@ -1131,142 +835,283 @@ def apply_categories(request):
 
     return Response({"status": "applied", "updated": updated, "count": len(updated)}, status=200)
 
-# ---------------------------------------------------------------------------
-# OpenClaw (The Intelligence Brain)
-# ---------------------------------------------------------------------------
+# OpenClaw and Zapier integrations were removed from MemOS.
 
-@api_view(["GET"])
-def list_openclaw_proposals(request):
-    """List all pending OpenClaw structural suggestions."""
-    proposals = OpenClawProposal.objects.filter(status="pending").order_by("-created_at")
-    data = []
-    for p in proposals:
-        data.append({
-            "id": p.id,
-            "type": p.proposal_type,
-            "title": p.title,
-            "description": p.description,
-            "data": p.data,
-            "timestamp": p.created_at.isoformat()
-        })
-    return Response({"proposals": data}, status=200)
+import subprocess
 
 @api_view(["POST"])
-def handle_openclaw_proposal(request):
-    """Approve or dismiss an OpenClaw proposal."""
-    proposal_id = request.data.get("id")
-    action = request.data.get("action") # 'apply', 'dismiss'
+def open_source_file(request):
+    """Open a local source file at a specific page using the system's default viewer."""
+    path = request.data.get("path")
+    page = request.data.get("page", 1)
     
+    if not path or not Path(path).exists():
+        raw_dir = WORKSPACE_RAW_DIR
+        alt_path = raw_dir / Path(path).name
+        if alt_path.exists():
+            path = str(alt_path)
+        else:
+            return Response({"error": "File not found"}, status=404)
+
     try:
-        proposal = OpenClawProposal.objects.get(id=proposal_id)
-        if action == "dismiss":
-            proposal.status = "dismissed"
-            proposal.save()
-            return Response({"status": "dismissed"})
+        if path.lower().endswith(".pdf"):
+            import re
+            try:
+                p_num = int(re.search(r"(\d+)", str(page)).group(1))
+            except:
+                p_num = 1
+                
+            try:
+                subprocess.Popen(["evince", "-i", str(p_num), path])
+            except:
+                try:
+                    subprocess.Popen(["okular", "-p", str(p_num), path])
+                except:
+                    subprocess.Popen(["xdg-open", path])
+        else:
+            subprocess.Popen(["xdg-open", path])
             
-        if action == "apply":
-            wiki_dir = Path(settings.BASE_DIR).parent / "workspace" / "wiki"
+    except Exception as e:
+        return Response({"error": str(e)}, status=500)
+
+@api_view(["POST"])
+def voice_capture(request):
+    """Semantically route a voice transcript to the right wiki page."""
+    transcript = request.data.get("transcript", "").strip()
+    if not transcript:
+        return Response({"error": "No transcript provided"}, status=400)
+    
+    # 1. Find the best matching page
+    matches = semantic_index.search(transcript, top_k=1)
+    
+    if matches and matches[0][1] > 0.6:
+        target_page = matches[0][0]
+        wiki_dir = WORKSPACE_WIKI_DIR
+        file_path = wiki_dir / f"{target_page.replace(' ', '_')}.md"
+        
+        if file_path.exists():
+            current_content = file_path.read_text(encoding="utf-8")
+            # Append as a thought
+            new_content = current_content + f"\n\n---\n> 🎙️ **Voice Thought ({time.strftime('%Y-%m-%d %H:%M')})**\n> {transcript}"
+            file_path.write_text(new_content, encoding="utf-8")
             
-            if proposal.proposal_type == "merge":
-                # Merge logic
-                page_a = proposal.data.get("page_a")
-                page_b = proposal.data.get("page_b")
-                merged_content = proposal.data.get("proposed_content")
-                
-                # Create the merged page (using page_a title or new title if provided)
-                target_file = wiki_dir / f"{page_a}.md"
-                target_file.write_text(merged_content, encoding="utf-8")
-                
-                # Delete the other page
-                other_file = wiki_dir / f"{page_b}.md"
-                if other_file.exists():
-                    other_file.unlink()
-                
-                # Git commit
-                from git import Repo
-                repo = Repo(wiki_dir)
-                repo.git.add(str(target_file))
-                repo.git.rm(str(other_file))
-                repo.index.commit(f"OpenClaw: Merged {page_a} and {page_b}")
-                
-            elif proposal.proposal_type == "gap":
-                # Gap logic
-                title = proposal.title
-                content = proposal.data.get("proposed_content")
-                
-                slug = title.replace(" ", "_")
-                file_path = wiki_dir / f"{slug}.md"
-                file_path.write_text(content, encoding="utf-8")
-                
-                # Git commit
-                from git import Repo
+            # Git commit
+            try:
                 repo = Repo(wiki_dir)
                 repo.git.add(str(file_path))
-                repo.index.commit(f"OpenClaw: Created missing concept [[{title}]]")
-
-            proposal.status = "applied"
-            proposal.save()
+                repo.index.commit(f"Voice Capture: Appended thought to [[{target_page}]]")
+            except: pass
             
-            # Rebuild index
-            ingest_processor._rebuild_text_index()
-            from .semantic_index import semantic_index
-            semantic_index.index_all()
-            
-            return Response({"status": "applied"})
-            
-    except OpenClawProposal.DoesNotExist:
-        return Response({"error": "Proposal not found"}, status=404)
-    except Exception as e:
-        return Response({"error": str(e)}, status=500)
+            return Response({"status": "appended", "page": target_page})
+    
+    # 2. If no good match, create a new "Unfiled Thoughts" page or a new page
+    result = ingest_processor.process_text(transcript, title="New Thought", auto_approve=True)
+    return Response({"status": "created", "result": result})
 
 @api_view(["POST"])
-def trigger_evolution(request):
-    """Manually trigger an OpenClaw analysis cycle."""
-    try:
-        results = open_claw.run_analysis_cycle()
-        return Response({"status": "complete", "results": results}, status=200)
-    except Exception as e:
-        return Response({"error": str(e)}, status=500)
+def publish_wiki(request):
+    """Generate a standalone, sleek HTML documentation site from the wiki."""
+    wiki_dir = WORKSPACE_WIKI_DIR
+    files = list(wiki_dir.glob("*.md"))
+    
+    html_content = """
+    <!DOCTYPE html>
+    <html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Memos Public Documentation</title>
+        <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
+        <style>
+            :root { --bg: #050505; --text: #e0e0e0; --accent: #00ffcc; --card: #111; --border: #222; }
+            body { font-family: 'Inter', sans-serif; background: var(--bg); color: var(--text); line-height: 1.6; margin: 0; padding: 0; }
+            .container { max-width: 900px; margin: 0 auto; padding: 4rem 2rem; }
+            header { border-bottom: 1px solid var(--border); padding-bottom: 2rem; margin-bottom: 4rem; }
+            h1 { font-weight: 800; font-size: 3rem; margin: 0; color: #fff; letter-spacing: -0.04em; }
+            .page-card { background: var(--card); border: 1px solid var(--border); border-radius: 24px; padding: 2rem; margin-bottom: 3rem; }
+            h2 { color: var(--accent); font-size: 1.5rem; margin-top: 0; }
+            .content { font-size: 1.05rem; color: #ccc; }
+            pre { background: #000; padding: 1rem; border-radius: 12px; overflow-x: auto; border: 1px solid #333; }
+            code { font-family: monospace; color: var(--accent); }
+            a { color: var(--accent); text-decoration: none; }
+            a:hover { text-decoration: underline; }
+            nav { position: sticky; top: 0; background: rgba(5,5,5,0.8); backdrop-filter: blur(10px); padding: 1rem 0; border-bottom: 1px solid var(--border); z-index: 100; }
+            .nav-inner { max-width: 900px; margin: 0 auto; display: flex; gap: 1rem; overflow-x: auto; }
+            .nav-link { font-size: 0.8rem; font-weight: 600; text-transform: uppercase; color: #666; white-space: nowrap; }
+        </style>
+    </head>
+    <body>
+        <nav><div class="nav-inner">
+    """
+    
+    # Navigation
+    for f in files:
+        title = f.stem.replace("_", " ")
+        html_content += f'<a href="#{f.stem}" class="nav-link">{title}</a>'
+    
+    html_content += """
+        </div></nav>
+        <div class="container">
+            <header>
+                <h1>Knowledge Base</h1>
+                <p style="color: #666;">Generated by MemOS OpenClaw on """ + time.strftime("%Y-%m-%d") + """</p>
+            </header>
+    """
+    
+    import markdown
+    for f in files:
+        title = f.stem.replace("_", " ")
+        content = f.read_text(encoding="utf-8")
+        # Strip frontmatter
+        content = re.sub(r"---.*?---", "", content, flags=re.DOTALL)
+        body_html = markdown.markdown(content)
+        
+        html_content += f"""
+        <div class="page-card" id="{f.stem}">
+            <h2>{title}</h2>
+            <div class="content">{body_html}</div>
+        </div>
+        """
+        
+    html_content += """
+        </div>
+    </body>
+    </html>
+    """
+    
+    # Save to a public file or return as response
+    output_path = WORKSPACE_ROOT / "published_docs.html"
+    output_path.write_text(html_content, encoding="utf-8")
+    
+    return Response({"status": "published", "url": str(output_path)})
+
+@api_view(["GET"])
+def manage_sources(request):
+    """List ingested sources (reliability scoring removed)."""
+    sources = Source.objects.all().order_by('-created_at')
+    latest_by_source = {}
+    for ledger in RawArtifactLedger.objects.select_related("source").order_by("-ingested_at"):
+        latest_by_source.setdefault(ledger.source_id, ledger)
+    return Response({
+        "sources": [
+            {
+                "id": s.id,
+                "name": s.name,
+                "type": s.source_type,
+                "created_at": s.created_at.isoformat(),
+                "canonical_path": (latest_by_source.get(s.id).canonical_path if latest_by_source.get(s.id) else s.path_or_url),
+                "mime_type": (latest_by_source.get(s.id).mime_type if latest_by_source.get(s.id) else ""),
+                "sha256": (latest_by_source.get(s.id).sha256 if latest_by_source.get(s.id) else ""),
+                "ingested_at": (
+                    latest_by_source.get(s.id).ingested_at.isoformat()
+                    if latest_by_source.get(s.id)
+                    else s.created_at.isoformat()
+                ),
+            } for s in sources
+        ]
+    })
+
 
 # ------------------------------------------------------------------------------
-# Zapier Webhook Integration
+# Installation & Onboarding Setup
 # ------------------------------------------------------------------------------
+
+@api_view(["GET"])
+def get_setup_status(request):
+    """Check whether setup is complete and local workspace is usable."""
+    is_activated = bool(getattr(settings, 'MEMOS_LICENSE_KEY', ''))
+    workspace_root = WORKSPACE_ROOT
+    wiki_dir = workspace_root / "wiki"
+    raw_dir = workspace_root / "raw"
+    workspace_ready = wiki_dir.exists() and raw_dir.exists()
+
+    return Response({
+        "is_activated": is_activated,
+        "workspace_ready": workspace_ready,
+        "is_fully_setup": is_activated and workspace_ready,
+    })
 
 @api_view(["POST"])
-def zapier_webhook(request):
-    """Receive webhooks from Zapier and ingest data into memos."""
-    data = request.data
-    action = data.get("action", "ingest")  # e.g., 'ingest', 'update_page'
-    title = data.get("title", "Webhook Content")
-    content = data.get("content", "")
+def setup_activate(request):
+    """Verify and save the Activation License Key."""
+    license_key = request.data.get("license_key")
     
-    if action == "ingest":
-        # Use existing ingest logic
-        result = ingest_processor.process_text(content, title=title, auto_approve=True)
-        return Response({"status": "ingested", "result": result}, status=200)
-    elif action == "update_page":
-        # Update existing page
-        wiki_dir = Path(settings.BASE_DIR).parent / "workspace" / "wiki"
-        file_path = wiki_dir / f"{title.replace(' ', '_')}.md"
-        file_path.write_text(content, encoding="utf-8")
-        
-        # Git commit
-        try:
-            from git import Repo
-            repo = Repo(wiki_dir)
-            repo.git.add(str(file_path))
-            repo.index.commit(f"Updated via Zapier webhook: {title}")
-        except Exception as e:
-            print(f"Git commit failed: {e}")
-        
-        # Rebuild indexes
-        try:
-            ingest_processor._rebuild_text_index()
-            from .semantic_index import semantic_index
-            semantic_index.index_all()
-        except Exception as e:
-            print(f"Index rebuild failed: {e}")
-        
-        return Response({"status": "updated"}, status=200)
+    if not license_key:
+        return Response({"valid": False, "error": "Activation key required."}, status=400)
     
-    return Response({"error": "Invalid action"}, status=400)
+    # MOCK SAAS LOGIC
+    if license_key.startswith("REVOKED-"):
+        return Response({"valid": False, "error": "Subscription expired or payment failed."})
+        
+    if not license_key.startswith("MEM-"):
+        return Response({"valid": False, "error": "Invalid Activation Key."})
+        
+    # Valid Key - Save it
+    env_path = Path(settings.BASE_DIR) / ".env"
+    env_lines = []
+    if env_path.exists():
+        env_lines = env_path.read_text().splitlines()
+    
+    new_lines = []
+    found_license = False
+    for line in env_lines:
+        if line.startswith("MEMOS_LICENSE_KEY="):
+            new_lines.append(f"MEMOS_LICENSE_KEY={license_key}")
+            found_license = True
+        elif line.startswith("GROQ_API_KEY=") or line.startswith("MEMOS_SETUP_MODE="):
+            continue # Strip out old local configs
+        else:
+            new_lines.append(line)
+
+    if not found_license:
+        new_lines.append(f"MEMOS_LICENSE_KEY={license_key}")
+        
+    env_path.write_text("\n".join(new_lines) + "\n")
+    
+    # Reload settings
+    settings.MEMOS_LICENSE_KEY = license_key
+    
+    # Reload AI Client
+    from .ai_client import MemosAIClient
+    import ingest.ai_client as ac_module
+    ac_module.memos_ai = MemosAIClient()
+
+    # Ensure local workspace directories exist for deterministic startup.
+    workspace_root = WORKSPACE_ROOT
+    (workspace_root / "wiki").mkdir(parents=True, exist_ok=True)
+    (workspace_root / "raw").mkdir(parents=True, exist_ok=True)
+    _append_metric_event("setup_activate_success", {"is_activated": True})
+    
+    return Response({"valid": True, "status": "success"})
+
+
+@api_view(["POST"])
+def track_metric_event(request):
+    """Track frontend KPI events into local workspace logs."""
+    event_name = str(request.data.get("event", "")).strip()
+    if not event_name:
+        return Response({"error": "event is required"}, status=400)
+    payload = request.data.get("payload", {})
+    if not isinstance(payload, dict):
+        payload = {"value": str(payload)}
+    _append_metric_event(event_name, payload)
+    return Response({"status": "tracked"}, status=200)
+
+
+@api_view(["GET"])
+def get_metrics_summary(request):
+    """Return lightweight KPI event counts for MVP validation."""
+    workspace_root = WORKSPACE_ROOT
+    events_file = workspace_root / "_metrics" / "events.jsonl"
+    counts = {}
+    if events_file.exists():
+        try:
+            for line in events_file.read_text(encoding="utf-8").splitlines():
+                if not line.strip():
+                    continue
+                event = json.loads(line).get("event", "unknown")
+                counts[event] = counts.get(event, 0) + 1
+        except Exception:
+            pass
+    return Response({"event_counts": counts}, status=200)
+

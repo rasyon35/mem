@@ -9,7 +9,7 @@ from django.conf import settings
 from xhtml2pdf import pisa
 import markdown
 
-WIKI_DIR = Path(settings.BASE_DIR).parent / "workspace" / "wiki"
+WIKI_DIR = Path(settings.WORKSPACE_WIKI_DIR)
 
 def convert_md_to_pdf(md_content, title):
     # Convert markdown to HTML

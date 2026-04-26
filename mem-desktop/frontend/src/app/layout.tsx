@@ -4,8 +4,9 @@ import { WikiProvider } from '@/context/WikiContext';
 import { ThemeProvider } from '@/context/ThemeContext';
 
 export const metadata: Metadata = {
-  title: 'Mem – Personal Knowledge Wiki',
-  description: 'An AI-powered personal wiki and team collaboration tool built with decentralized Git logic.',
+  title: 'Mem Desktop - Local-First Research Workspace',
+  description:
+    'Capture research, class notes, and team knowledge into a private local workspace with cloud billing and account management only.',
 };
 
 export default function RootLayout({
