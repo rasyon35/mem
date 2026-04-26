@@ -66,25 +66,25 @@ export default function Sidebar({ isCollapsed, onToggle }: SidebarProps) {
 
 
   return (
-    <aside className={`sidebar ${isCollapsed ? 'collapsed' : ''}`}>
+    <aside className={`sidebar bg-gradient-to-b from-surface-2 to-surface-3 shadow-xl ${isCollapsed ? 'collapsed' : ''}`}>
       {/* Logo Row + Collapse Toggle */}
-      <div className="sidebar-header">
+      <div className="sidebar-header border-b border-border-subtle bg-gradient-to-r from-accent/10 to-transparent px-4 py-5">
         <div className="logo overflow-hidden">
-          <div className="logo-mark mr-3 flex-shrink-0">M</div>
+          <div className="logo-mark mr-3 flex-shrink-0 w-10 h-10 rounded-xl bg-gradient-to-br from-accent to-accent-dark text-white flex items-center justify-center font-black text-lg shadow-lg shadow-accent/30">M</div>
           {!isCollapsed && (
             <motion.div 
               initial={{ opacity: 0, x: -10 }}
               animate={{ opacity: 1, x: 0 }}
               className="flex flex-col"
             >
-              <span className="logo-text font-outfit text-2xl tracking-tighter leading-none">MemOS</span>
-              <span className="text-[9px] font-black uppercase tracking-[0.3em] mt-1 whitespace-nowrap" style={{ color: 'var(--accent)' }}>Knowledge Engine</span>
+              <span className="logo-text font-outfit text-2xl tracking-tighter leading-none text-text-primary">MemOS</span>
+              <span className="text-[9px] font-black uppercase tracking-[0.3em] mt-1 whitespace-nowrap bg-gradient-to-r from-accent to-accent-light bg-clip-text text-transparent">Knowledge Engine</span>
             </motion.div>
           )}
         </div>
         <button 
           onClick={onToggle}
-          className="collapse-toggle"
+          className="collapse-toggle p-1.5 hover:bg-white/10 rounded-lg transition-colors text-text-secondary hover:text-text-primary"
           title={isCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
         >
           <svg className={`w-4 h-4 transition-transform duration-200 ${isCollapsed ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -94,7 +94,7 @@ export default function Sidebar({ isCollapsed, onToggle }: SidebarProps) {
       </div>
 
       {/* Nav Sections */}
-      <nav className="nav px-2 flex-1 overflow-y-auto custom-scrollbar">
+      <nav className="nav px-3 flex-1 overflow-y-auto custom-scrollbar space-y-1">
         {navSections.map(section => {
           const isSectionOpen = openSections[section.key] !== false;
           return (
@@ -102,7 +102,7 @@ export default function Sidebar({ isCollapsed, onToggle }: SidebarProps) {
               {!isCollapsed && (
                 <button
                   onClick={() => toggleSection(section.key)}
-                  className="nav-section-header"
+                  className="nav-section-header w-full px-4 py-3 flex items-center justify-between text-xs font-black uppercase tracking-wider text-text-secondary/70 hover:text-accent transition-colors rounded-lg hover:bg-accent/10"
                 >
                   <span>{section.key}</span>
                   <svg className={`w-3 h-3 transition-transform duration-200 ${isSectionOpen ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">

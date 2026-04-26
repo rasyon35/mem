@@ -87,18 +87,16 @@ export function OpenMarkdown({ onOpen, onClose, onNewMarkdown }: OpenMarkdownPro
   };
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 md:p-20 animate-in fade-in duration-500" style={{ background: 'rgba(0, 0, 0, 0.9)', backdropFilter: 'blur(32px)' }}>
+    <div className="markdown-modal-overlay fixed inset-0 z-[100] flex items-center justify-center p-4 md:p-20 animate-fade-in backdrop-blur-xl bg-black/80">
       {/* Search Input Container - Floating Above Modal */}
-      <div className="absolute top-12 left-1/2 -translate-x-1/2 w-full max-w-3xl px-6">
+      <div className="absolute top-12 left-1/2 -translate-x-1/2 w-full max-w-3xl px-6 z-20">
         <div className="relative group">
-          <Search className="absolute left-6 top-1/2 -translate-y-1/2 w-6 h-6 opacity-40 group-focus-within:opacity-100 group-focus-within:text-[var(--accent)] transition-all" />
+          <Search className="absolute left-6 top-1/2 -translate-y-1/2 w-6 h-6 opacity-40 group-focus-within:opacity-100 group-focus-within:text-accent transition-all duration-200" />
           <input
-            className="w-full pl-16 pr-8 py-6 rounded-full border-none text-2xl font-black outline-none transition-all shadow-[0_10px_50px_rgba(0,0,0,0.5)]"
+            className="markdown-search-input w-full pl-16 pr-8 py-6 rounded-full border-none text-2xl font-black outline-none transition-all shadow-2xl bg-white/10 text-text-primary placeholder-text-secondary/40 focus:bg-white/15 focus:shadow-lg focus:shadow-accent/20"
             style={{
-              background: 'rgba(255, 255, 255, 0.05)',
-              color: 'var(--text-primary)',
               backdropFilter: 'blur(20px)',
-              border: '1px solid rgba(255, 255, 255, 0.1)'
+              border: '1px solid rgba(255, 255, 255, 0.15)'
             }}
             value={search}
             onChange={(e) => setSearch(e.target.value)}
@@ -111,7 +109,7 @@ export function OpenMarkdown({ onOpen, onClose, onNewMarkdown }: OpenMarkdownPro
               onClick={onClose}
               className="p-1.5 rounded-full hover:bg-white/10 transition-colors"
             >
-              <X className="w-5 h-5 opacity-40" />
+              <X className="w-5 h-5 opacity-40 hover:opacity-60" />
             </button>
           </div>
         </div>
@@ -119,17 +117,16 @@ export function OpenMarkdown({ onOpen, onClose, onNewMarkdown }: OpenMarkdownPro
 
       {/* Main Explorer Modal - Oversized Refinement */}
       <div
-        className="w-full max-w-6xl h-full max-h-[75vh] rounded-[40px] border shadow-[0_0_80px_rgba(0,0,0,0.8)] overflow-hidden flex animate-in zoom-in-95 duration-500"
-        style={{ borderColor: 'rgba(255, 255, 255, 0.1)', background: 'rgba(15, 15, 18, 0.95)' }}
+        className="markdown-modal-content w-full max-w-6xl h-full max-h-[75vh] rounded-3xl border border-white/10 shadow-2xl overflow-hidden flex animate-modal-in bg-gradient-to-b from-surface-2 to-surface-3 backdrop-blur"
       >
         {/* Left Side: List of Results */}
-        <div className="w-2/5 border-r flex flex-col min-h-0" style={{ borderColor: 'rgba(255, 255, 255, 0.05)' }}>
-          <div className="px-8 py-4 flex items-center justify-between border-b" style={{ borderColor: 'rgba(255, 255, 255, 0.05)' }}>
+        <div className="markdown-modal-list w-2/5 border-r border-border-subtle flex flex-col min-h-0 bg-surface-3/50">
+          <div className="px-8 py-4 flex items-center justify-between border-b border-border-subtle bg-gradient-to-r from-accent/5 to-transparent">
              <span className="text-[10px] font-black uppercase tracking-[0.2em] opacity-40">
                 {isLoading ? 'Scanning Vault...' : `${filtered.length} Indexed Nodes`}
              </span>
-             <button onClick={fetchPages} className="hover:rotate-180 transition-transform duration-500">
-                <RefreshCw className="w-3 h-3 opacity-40" />
+             <button onClick={fetchPages} className="hover:rotate-180 transition-transform duration-500 text-accent/60 hover:text-accent">
+                <RefreshCw className="w-4 h-4" />
              </button>
           </div>
 
@@ -151,21 +148,21 @@ export function OpenMarkdown({ onOpen, onClose, onNewMarkdown }: OpenMarkdownPro
                 {filtered.map((p, idx) => (
                   <button
                     key={p.id}
-                    className={`w-full text-left px-8 py-5 transition-all relative group ${selectedIdx === idx ? 'bg-white/5' : 'hover:bg-white/[0.02]'}`}
+                    className={`markdown-list-item w-full text-left px-8 py-5 transition-all relative group border-b border-border-subtle/30 ${selectedIdx === idx ? 'bg-accent/10 border-accent/30' : 'hover:bg-white/5'}`}
                     onMouseEnter={() => setSelectedIdx(idx)}
                     onClick={() => onOpen(p.id)}
                   >
                     {selectedIdx === idx && (
-                       <div className="absolute left-0 top-0 bottom-0 w-1 bg-[var(--accent)] shadow-[0_0_15px_var(--accent)]" />
+                       <div className="absolute left-0 top-0 bottom-0 w-1 bg-gradient-to-b from-accent to-accent/40 shadow-lg shadow-accent/20" />
                     )}
                     
                     <div className="flex items-center justify-between gap-4">
                       <div className="flex items-center gap-4 min-w-0">
-                        <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 transition-all ${selectedIdx === idx ? 'bg-[var(--accent)] text-white scale-105' : 'bg-white/5 opacity-50'}`}>
+                        <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 transition-all ${selectedIdx === idx ? 'bg-gradient-to-br from-accent to-accent-dark text-white scale-105 shadow-lg shadow-accent/30' : 'bg-white/5 opacity-50 hover:opacity-70'}`}>
                           <FileText className="w-4 h-4" />
                         </div>
                         <div className="min-w-0">
-                          <p className={`text-sm font-black truncate transition-colors ${selectedIdx === idx ? 'text-white' : 'opacity-60'}`}>
+                          <p className={`text-sm font-black truncate transition-colors ${selectedIdx === idx ? 'text-text-primary' : 'text-text-secondary group-hover:text-text-primary'}`}>
                             {p.title || p.slug}
                           </p>
                           <p className="text-[9px] font-bold opacity-30 truncate uppercase tracking-tighter mt-0.5">
@@ -173,7 +170,7 @@ export function OpenMarkdown({ onOpen, onClose, onNewMarkdown }: OpenMarkdownPro
                           </p>
                         </div>
                       </div>
-                      <ChevronRight className={`w-4 h-4 transition-all ${selectedIdx === idx ? 'opacity-100 translate-x-0' : 'opacity-0 -translate-x-2'}`} />
+                      <ChevronRight className={`w-4 h-4 transition-all text-accent ${selectedIdx === idx ? 'opacity-100 translate-x-0' : 'opacity-0 -translate-x-2'}`} />
                     </div>
                   </button>
                 ))}
@@ -190,9 +187,9 @@ export function OpenMarkdown({ onOpen, onClose, onNewMarkdown }: OpenMarkdownPro
         </div>
 
         {/* Right Side: Intelligence Preview Pane */}
-        <div className="flex-1 flex flex-col min-h-0 bg-white/[0.01]">
+        <div className="markdown-modal-preview flex-1 flex flex-col min-h-0 bg-gradient-to-br from-bg-900/50 to-bg-950/50">
           {selectedPage ? (
-            <div className="flex-1 flex flex-col p-16 overflow-y-auto custom-scrollbar animate-in slide-in-from-right-10 duration-500">
+            <div className="flex-1 flex flex-col p-16 overflow-y-auto custom-scrollbar animate-slide-in-right duration-500">
                <div className="flex items-center gap-3 mb-8">
                   <span className="px-3 py-1 rounded-full bg-[var(--accent)]/10 text-[var(--accent)] border border-[var(--accent)]/20 text-[10px] font-black uppercase tracking-widest">
                      {selectedPage.page_type || 'Markdown'}

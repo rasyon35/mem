@@ -1,7 +1,12 @@
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@400;600;800&display=swap');
 @import "tailwindcss";
 @import "./css/tokens.css";
+@import "./css/animations.css";
 @import "./css/layout.css";
 @import "./css/ui-components.css";
+@import "./css/editor.css";
+@import "./css/markdown-modal.css";
+@import "./css/chat-enhanced.css";
+@import "./css/graph-enhanced.css";
 @import "./css/features.css";
 @import "./css/collision.css";
