@@ -6,8 +6,8 @@
 /* ── Sidebar ── */
 .sidebar {
   width: var(--sidebar-w);
-  background: color-mix(in hsl, var(--surface-2) 88%, transparent);
-  backdrop-filter: blur(10px);
+  background: linear-gradient(135deg, var(--surface-2) 0%, color-mix(in hsl, var(--surface-2) 98%, var(--accent) 2%) 100%);
+  backdrop-filter: blur(12px);
   border-right: 1px solid var(--border-subtle);
   display: flex;
   flex-direction: column;
@@ -15,7 +15,7 @@
   position: fixed;
   top: 0; left: 0; bottom: 0;
   z-index: 20;
-  box-shadow: 2px 0 18px rgba(0,0,0,0.18);
+  box-shadow: 2px 0 20px rgba(0,0,0,0.2), inset -1px 0 0 var(--border-subtle);
   transition: width var(--t-normal), background var(--t-normal), border-color var(--t-normal);
   overflow: hidden;
 }
