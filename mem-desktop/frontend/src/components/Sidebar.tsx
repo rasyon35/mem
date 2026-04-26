@@ -2,7 +2,7 @@
 
 import React, { useState, useMemo } from 'react';
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useSearchParams } from 'next/navigation';
 import { motion } from 'framer-motion';
 import { useWiki } from '@/context/WikiContext';
 import { useTheme } from '@/context/ThemeContext';
@@ -19,10 +19,11 @@ interface SidebarProps {
 
 export default function Sidebar({ isCollapsed, onToggle }: SidebarProps) {
   const pathname = usePathname();
+  const searchParams = useSearchParams();
   const { wikiPages, contradictions, pullRequests, openPage, locks, presence, team } = useWiki();
   const { theme, toggleTheme } = useTheme();
   const [openCategories, setOpenCategories] = useState<Record<string, boolean>>({});
-  const [openSections, setOpenSections] = useState<Record<string, boolean>>({ Knowledge: true, Insights: true, Team: true });
+  const [openSections, setOpenSections] = useState<Record<string, boolean>>({ Core: true, Wiki: true, Management: true });
 
   const groupedPages = useMemo(() => {
     const groups: Record<string, typeof wikiPages> = {};
@@ -38,22 +39,18 @@ export default function Sidebar({ isCollapsed, onToggle }: SidebarProps) {
   const toggleSection = (sec: string) => setOpenSections(prev => ({ ...prev, [sec]: !prev[sec] }));
 
   const navSections = [
-    { key: 'Knowledge', items: [
+    { key: 'Core', items: [
       { title: 'Ingest', path: '/dashboard/ingest', icon: <IngestIcon /> },
       { title: 'Chat', path: '/dashboard/chat', icon: <ChatIcon /> },
-      { title: 'Wiki', path: '/dashboard/wiki', icon: <WikiIcon /> },
-      { title: 'Research', path: '/dashboard/research', icon: <ResearchIcon /> },
     ]},
-    { key: 'Insights', items: [
-      { title: 'Graph', path: '/dashboard/graph', icon: <GraphIcon /> },
-      { title: 'Timeline', path: '/dashboard/timeline', icon: <TimelineIcon /> },
-      { title: 'Evolution', path: '/dashboard/evolution', icon: <SynthesisIcon /> },
-      { title: 'Conflicts', path: '/dashboard/contradictions', icon: <ConflictIcon />, badge: contradictions?.length },
-      { title: 'Categories', path: '/dashboard/organize', icon: <SynthesisIcon /> },
+    { key: 'Wiki', items: [
+      { title: 'New Markdown', path: '/dashboard/markdown?action=new', icon: <WikiIcon /> },
+      { title: 'Open Markdown', path: '/dashboard/markdown?action=open', icon: <WikiIcon /> },
     ]},
-    { key: 'Team', items: [
-      { title: 'Collab', path: '/dashboard/collab', icon: <CollabIcon /> },
+    { key: 'Management', items: [
       { title: 'Settings', path: '/dashboard/settings', icon: <SettingsIcon /> },
+      { title: 'Collab', path: '/dashboard/collab', icon: <CollabIcon /> },
+      { title: 'Timeline', path: '/dashboard/timeline', icon: <TimelineIcon /> },
     ]},
   ];
 
@@ -114,7 +111,17 @@ export default function Sidebar({ isCollapsed, onToggle }: SidebarProps) {
                 </button>
               )}
               {(isSectionOpen || isCollapsed) && section.items.map(item => {
-                const isActive = pathname === item.path;
+                const [itemPath, itemQuery] = item.path.split('?');
+                const isPathActive = pathname === itemPath;
+                const isQueryActive = (() => {
+                  if (!itemQuery) return true;
+                  const itemParams = new URLSearchParams(itemQuery);
+                  for (const [k, v] of itemParams.entries()) {
+                    if (searchParams.get(k) !== v) return false;
+                  }
+                  return true;
+                })();
+                const isActive = isPathActive && isQueryActive;
                 return (
                   <Link
                     key={item.path}
@@ -170,7 +177,7 @@ export default function Sidebar({ isCollapsed, onToggle }: SidebarProps) {
                       {pages.map(p => (
                         <Link
                           key={p.title}
-                          href={`/dashboard/wiki?page=${encodeURIComponent(p.title)}`}
+                          href={`/dashboard/markdown?page=${encodeURIComponent(p.slug || p.title)}`}
                           className="text-[11px] font-bold py-1 transition-colors flex items-center gap-2"
                           style={{ color: 'var(--text-muted)' }}
                           onMouseEnter={e => e.currentTarget.style.color = 'var(--text-primary)'}

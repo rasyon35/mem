@@ -1,0 +1,76 @@
+{"event": "frontend_graph_opened", "timestamp": 1777201931.216683, "payload": {"focus": null}}
+{"event": "frontend_graph_opened", "timestamp": 1777201931.2213032, "payload": {"focus": null}}
+{"event": "ingest_file_completed", "timestamp": 1777201952.8201094, "payload": {"source_type": "file", "auto_approve": true, "has_error": false, "status": "applied"}}
+{"event": "frontend_ingest_completed", "timestamp": 1777201952.8317354, "payload": {"source_type": "file", "has_error": false, "status": "applied"}}
+{"event": "frontend_graph_opened", "timestamp": 1777202063.9732432, "payload": {"focus": null}}
+{"event": "frontend_graph_opened", "timestamp": 1777202063.972561, "payload": {"focus": null}}
+{"event": "frontend_graph_node_selected", "timestamp": 1777202070.8992326, "payload": {"node_id": "Appointment_Information", "node_type": "knowledge"}}
+{"event": "frontend_graph_open_wiki", "timestamp": 1777202073.6585348, "payload": {"node_id": "Appointment_Information"}}
+{"event": "chat_message_sent", "timestamp": 1777202200.6869602, "payload": {"surface": "main", "mode": "global", "has_context": false}}
+{"event": "chat_query_completed", "timestamp": 1777202201.2164276, "payload": {"with_page_context": false, "question_len": 52, "surface": "main"}}
+{"event": "chat_answer_received", "timestamp": 1777202201.2644825, "payload": {"surface": "main", "mode": "global", "confidence": "low", "citations_count": 1}}
+{"event": "frontend_chat_completed", "timestamp": 1777202201.313396, "payload": {"surface": "main", "with_page_context": false, "has_error": false}}
+{"event": "frontend_graph_opened", "timestamp": 1777203413.33716, "payload": {"focus": null}}
+{"event": "frontend_graph_opened", "timestamp": 1777203413.3929381, "payload": {"focus": null}}
+{"event": "frontend_graph_node_selected", "timestamp": 1777203422.7320917, "payload": {"node_id": "appointment_information", "node_type": "knowledge"}}
+{"event": "ingest_file_completed", "timestamp": 1777203446.8263566, "payload": {"source_type": "file", "auto_approve": true, "has_error": false, "status": "applied"}}
+{"event": "frontend_ingest_completed", "timestamp": 1777203446.8378038, "payload": {"source_type": "file", "has_error": false, "status": "applied"}}
+{"event": "frontend_graph_opened", "timestamp": 1777203460.2015386, "payload": {"focus": null}}
+{"event": "frontend_graph_opened", "timestamp": 1777203460.2177808, "payload": {"focus": null}}
+{"event": "frontend_graph_node_selected", "timestamp": 1777203478.6274705, "payload": {"node_id": "website_structure", "node_type": "knowledge"}}
+{"event": "frontend_graph_opened", "timestamp": 1777205810.3196638, "payload": {"focus": null}}
+{"event": "frontend_graph_opened", "timestamp": 1777205810.3307364, "payload": {"focus": null}}
+{"event": "ingest_file_completed", "timestamp": 1777205847.5486486, "payload": {"source_type": "file", "auto_approve": true, "has_error": false, "status": "applied"}}
+{"event": "frontend_ingest_completed", "timestamp": 1777205847.5659082, "payload": {"source_type": "file", "has_error": false, "status": "applied"}}
+{"event": "frontend_graph_opened", "timestamp": 1777205867.0403152, "payload": {"focus": null}}
+{"event": "frontend_graph_opened", "timestamp": 1777205867.0699344, "payload": {"focus": null}}
+{"event": "chat_query_completed", "timestamp": 1777206011.6776254, "payload": {"with_page_context": false, "question_len": 24, "surface": "main"}}
+{"event": "chat_query_completed", "timestamp": 1777206011.7606902, "payload": {"with_page_context": true, "question_len": 17, "surface": "wiki"}}
+{"event": "chat_query_completed", "timestamp": 1777206011.8366835, "payload": {"with_page_context": false, "question_len": 13, "surface": "main"}}
+{"event": "ingest_file_completed", "timestamp": 1777206011.8446267, "payload": {"source_type": "file", "auto_approve": false, "has_error": false, "status": "staged"}}
+{"event": "ingest_file_completed", "timestamp": 1777206151.667077, "payload": {"source_type": "file", "auto_approve": false, "has_error": false, "status": "staged"}}
+{"event": "chat_query_completed", "timestamp": 1777206287.003394, "payload": {"with_page_context": false, "question_len": 24, "surface": "main"}}
+{"event": "chat_query_completed", "timestamp": 1777206287.10121, "payload": {"with_page_context": true, "question_len": 17, "surface": "wiki"}}
+{"event": "chat_query_completed", "timestamp": 1777206287.2473521, "payload": {"with_page_context": false, "question_len": 13, "surface": "main"}}
+{"event": "ingest_file_completed", "timestamp": 1777206287.2625885, "payload": {"source_type": "file", "auto_approve": false, "has_error": false, "status": "staged"}}
+{"event": "chat_query_completed", "timestamp": 1777206309.9072723, "payload": {"with_page_context": false, "question_len": 24, "surface": "main"}}
+{"event": "chat_query_completed", "timestamp": 1777206310.0125365, "payload": {"with_page_context": true, "question_len": 17, "surface": "wiki"}}
+{"event": "chat_query_completed", "timestamp": 1777206310.1444428, "payload": {"with_page_context": false, "question_len": 13, "surface": "main"}}
+{"event": "ingest_file_completed", "timestamp": 1777206310.1628325, "payload": {"source_type": "file", "auto_approve": false, "has_error": false, "status": "staged"}}
+{"event": "chat_query_completed", "timestamp": 1777206430.0178375, "payload": {"with_page_context": false, "question_len": 24, "surface": "main"}}
+{"event": "chat_query_completed", "timestamp": 1777206430.1268568, "payload": {"with_page_context": true, "question_len": 17, "surface": "wiki"}}
+{"event": "chat_query_completed", "timestamp": 1777206430.2240586, "payload": {"with_page_context": false, "question_len": 13, "surface": "main"}}
+{"event": "ingest_file_completed", "timestamp": 1777206430.2328186, "payload": {"source_type": "file", "auto_approve": false, "has_error": false, "status": "staged"}}
+{"event": "chat_query_completed", "timestamp": 1777206476.5334668, "payload": {"with_page_context": false, "question_len": 24, "surface": "main"}}
+{"event": "chat_query_completed", "timestamp": 1777206476.6865532, "payload": {"with_page_context": true, "question_len": 17, "surface": "wiki"}}
+{"event": "chat_query_completed", "timestamp": 1777206476.872869, "payload": {"with_page_context": false, "question_len": 13, "surface": "main"}}
+{"event": "ingest_file_completed", "timestamp": 1777206476.882462, "payload": {"source_type": "file", "auto_approve": false, "has_error": false, "status": "staged"}}
+{"event": "frontend_graph_opened", "timestamp": 1777206975.7383988, "payload": {"focus": null}}
+{"event": "frontend_graph_opened", "timestamp": 1777206975.8547385, "payload": {"focus": null}}
+{"event": "ingest_file_completed", "timestamp": 1777207004.7865176, "payload": {"source_type": "file", "auto_approve": true, "has_error": true, "status": null}}
+{"event": "frontend_ingest_completed", "timestamp": 1777207004.8412867, "payload": {"source_type": "file", "has_error": true, "status": "unknown"}}
+{"event": "frontend_graph_opened", "timestamp": 1777207068.8908134, "payload": {"focus": null}}
+{"event": "frontend_graph_opened", "timestamp": 1777207068.985069, "payload": {"focus": null}}
+{"event": "frontend_graph_node_selected", "timestamp": 1777207072.6492221, "payload": {"node_id": "numpy", "node_type": "knowledge"}}
+{"event": "frontend_graph_opened", "timestamp": 1777207459.7411427, "payload": {"focus": null}}
+{"event": "frontend_graph_opened", "timestamp": 1777207459.7922726, "payload": {"focus": null}}
+{"event": "chat_message_sent", "timestamp": 1777226900.1617677, "payload": {"surface": "main", "mode": "global", "has_context": false}}
+{"event": "chat_query_completed", "timestamp": 1777226929.7295303, "payload": {"with_page_context": false, "question_len": 52, "surface": "main"}}
+{"event": "chat_answer_received", "timestamp": 1777226929.7786186, "payload": {"surface": "main", "mode": "global", "confidence": "medium", "citations_count": 3}}
+{"event": "frontend_chat_completed", "timestamp": 1777226929.8333666, "payload": {"surface": "main", "with_page_context": false, "has_error": false}}
+{"event": "chat_citation_opened", "timestamp": 1777226936.120428, "payload": {"surface": "main", "page": "Vectors_&_Vector_Spaces"}}
+{"event": "chat_answer_to_action", "timestamp": 1777226936.1243284, "payload": {"surface": "main", "action": "open_page", "page": "Vectors_&_Vector_Spaces"}}
+{"event": "chat_citation_opened", "timestamp": 1777226962.4985685, "payload": {"surface": "main", "page": "Module_Experience_\u2013_Tabs_(8_Tabs_Per_Module)"}}
+{"event": "chat_answer_to_action", "timestamp": 1777226962.5007122, "payload": {"surface": "main", "action": "open_page", "page": "Module_Experience_\u2013_Tabs_(8_Tabs_Per_Module)"}}
+{"event": "chat_message_sent", "timestamp": 1777227015.704759, "payload": {"surface": "main", "mode": "global", "has_context": false}}
+{"event": "chat_query_completed", "timestamp": 1777227019.5182524, "payload": {"with_page_context": false, "question_len": 40, "surface": "main"}}
+{"event": "chat_answer_received", "timestamp": 1777227019.5746431, "payload": {"surface": "main", "mode": "global", "confidence": "medium", "citations_count": 3}}
+{"event": "frontend_chat_completed", "timestamp": 1777227019.6340225, "payload": {"surface": "main", "with_page_context": false, "has_error": false}}
+{"event": "chat_message_sent", "timestamp": 1777227028.3928392, "payload": {"surface": "main", "mode": "global", "has_context": false}}
+{"event": "chat_query_completed", "timestamp": 1777227030.0731242, "payload": {"with_page_context": false, "question_len": 20, "surface": "main"}}
+{"event": "chat_answer_received", "timestamp": 1777227030.1222312, "payload": {"surface": "main", "mode": "global", "confidence": "medium", "citations_count": 3}}
+{"event": "frontend_chat_completed", "timestamp": 1777227030.1684363, "payload": {"surface": "main", "with_page_context": false, "has_error": false}}
+{"event": "chat_citation_opened", "timestamp": 1777227053.1709664, "payload": {"surface": "main", "page": "Main_Courses"}}
+{"event": "chat_answer_to_action", "timestamp": 1777227053.1754694, "payload": {"surface": "main", "action": "open_page", "page": "Main_Courses"}}
+{"event": "frontend_graph_opened", "timestamp": 1777231940.9938948, "payload": {"focus": null}}
+{"event": "frontend_graph_opened", "timestamp": 1777231940.9966688, "payload": {"focus": null}}

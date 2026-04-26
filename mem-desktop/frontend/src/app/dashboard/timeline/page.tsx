@@ -47,12 +47,12 @@ function TimelineContent() {
 
   return (
     <section className="panel" id="panel-timeline">
-      <div className="flex justify-between items-center mb-6 border-b border-white/5 pb-4">
+      <div className="flex justify-between items-center mb-6 border-b pb-4" style={{ borderColor: 'var(--border-subtle)' }}>
         <div>
           <h1 className="panel-title mb-1">Timeline</h1>
           <p className="panel-sub">{pageFilter ? `History for ${pageFilter.replace(/_/g, ' ')}` : 'System-wide version history and team activity.'}</p>
         </div>
-        <div className="flex bg-white/5 border border-white/8 rounded-xl p-1">
+        <div className="flex rounded-xl p-1 border" style={{ background: 'var(--surface-2)', borderColor: 'var(--border-subtle)' }}>
           <button 
             className={`px-4 py-1.5 text-xs font-bold uppercase tracking-wider rounded-lg transition-all ${activeTab === 'history' ? 'bg-accent/20 text-accent' : 'text-muted hover:text-white'}`}
             onClick={() => setActiveTab('history')}

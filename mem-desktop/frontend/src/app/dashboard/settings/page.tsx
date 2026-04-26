@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import axios from 'axios';
 import { useWiki } from '@/context/WikiContext';
 import { Spinner } from '@/components/Icons';
@@ -15,7 +15,7 @@ type ReorgItem = {
 
 export default function SettingsPage() {
   const { 
-    autoApprove, setAutoApprove, contradictions, resolveContradiction, openPage, 
+    autoApprove, setAutoApprove, contradictions, resolveContradiction, 
     criticalPages, addCritical, removeCritical, newCritical, setNewCritical,
     fetchWikiPages
   } = useWiki();
@@ -26,7 +26,7 @@ export default function SettingsPage() {
   const [reorgApplying, setReorgApplying] = useState(false);
   const [reorgDone, setReorgDone] = useState(false);
   const [reorgEdits, setReorgEdits] = useState<Record<string, string>>({});
-
+  
   const handleReorganize = async () => {
     setReorgLoading(true);
     setReorgDone(false);
@@ -72,6 +72,37 @@ export default function SettingsPage() {
     }
   };
 
+  const [publishing, setPublishing] = useState(false);
+  const [publishUrl, setPublishUrl] = useState('');
+  const [kpiCounts, setKpiCounts] = useState<Record<string, number>>({});
+
+  const handlePublish = async () => {
+    setPublishing(true);
+    setPublishUrl('');
+    try {
+      const res = await axios.post(`${API}/publish`);
+      setPublishUrl(res.data.url);
+    } catch {
+      alert('Failed to publish wiki.');
+    } finally {
+      setPublishing(false);
+    }
+  };
+
+  const loadKpiSummary = async () => {
+    try {
+      const res = await axios.get(`${API}/metrics/summary`);
+      setKpiCounts(res.data.event_counts || {});
+    } catch {
+      setKpiCounts({});
+    }
+  };
+
+  // eslint-disable-next-line react-hooks/set-state-in-effect
+  useEffect(() => {
+    loadKpiSummary();
+  }, []);
+
   // Count how many categories will change
   const changedCount = reorgPreview.filter(item => {
     const proposed = reorgEdits[item.title] ?? item.proposed_category;
@@ -83,7 +114,7 @@ export default function SettingsPage() {
       <h1 className="panel-title">Management</h1>
 
       <div className="card">
-        <h2 className="text-xl font-bold mb-2">Preferences</h2>
+        <h2 className="text-xl font-bold mb-2" style={{ color: 'var(--text-primary)' }}>Preferences</h2>
         <div className="flex flex-col gap-3">
           <label className="toggle-switch">
             <input
@@ -104,70 +135,60 @@ export default function SettingsPage() {
       <div className="card">
         <div className="flex justify-between items-center mb-2">
           <div>
-            <h2 className="text-xl font-bold">Data Export & Archival</h2>
-            <p className="panel-sub">Download a complete snapshot of your knowledge base, including all markdown files.</p>
+            <h2 className="text-xl font-bold" style={{ color: 'var(--text-primary)' }}>Data Export & Archival</h2>
+            <p className="panel-sub">Download a complete snapshot of your knowledge base or publish a public site.</p>
           </div>
-          <a
-            href={`${API}/export_all`}
-            download
-            className="btn-primary flex items-center justify-center gap-2"
-          >
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-            Download Archive (.zip)
-          </a>
+          <div className="flex gap-2">
+            <button
+              className="btn-secondary flex items-center justify-center gap-2"
+              onClick={handlePublish}
+              disabled={publishing}
+            >
+              {publishing ? <Spinner /> : '🚀 Publish to Public Docs'}
+            </button>
+            <a
+              href={`${API}/export_all`}
+              download
+              className="btn-primary flex items-center justify-center gap-2"
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+              Download Archive (.zip)
+            </a>
+          </div>
         </div>
+        {publishUrl && (
+          <div style={{ marginTop: '12px', padding: '12px', background: 'rgba(16,185,129,0.08)', border: '1px solid rgba(16,185,129,0.25)', borderRadius: '12px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <p style={{ fontSize: '12px', color: 'var(--text-primary)' }}>✓ Site published! <code style={{ color: 'var(--accent)' }}>{publishUrl}</code></p>
+            <button style={{ fontSize: '10px', fontWeight: 700, color: 'var(--accent)', textTransform: 'uppercase', background: 'none', border: 'none', cursor: 'pointer' }} onClick={() => copyToClipboard(publishUrl)}>Copy Path</button>
+          </div>
+        )}
+      </div>
+
+      <div className="card">
+        <h2 className="text-xl font-bold mb-2" style={{ color: 'var(--text-primary)' }}>Product Scope</h2>
+        <p className="panel-sub">
+          This build focuses on core local-first workflows only: ingest, wiki editing, search/chat, history, and settings.
+        </p>
+        <p className="panel-sub mt-2">
+          External automation and autonomous agents are intentionally excluded in this version to prioritize reliability.
+        </p>
       </div>
 
       <div className="card">
         <div className="flex justify-between items-center mb-2">
           <div>
-            <h2 className="text-xl font-bold">Integrations</h2>
-            <p className="panel-sub">Manual integration steps for OpenClaw and Zapier.</p>
+            <h2 className="text-xl font-bold" style={{ color: 'var(--text-primary)' }}>MVP KPI Snapshot</h2>
+            <p className="panel-sub">Local event counters for activation, usage, trust, and quality validation.</p>
           </div>
+          <button className="btn-ghost !py-1 !px-3 text-[10px] font-black uppercase tracking-widest" onClick={loadKpiSummary}>
+            Refresh
+          </button>
         </div>
-
-        <div className="grid gap-4">
-          <div className="bg-bg-800 border border-border/50 rounded-xl p-4">
-            <h3 className="font-semibold">OpenClaw</h3>
-            <p className="text-sm text-muted mb-3">
-              OpenClaw integration is installed on the backend startup if available. If you want to install manually, run the OpenClaw installer outside the app.
-            </p>
-            <div className="flex flex-wrap gap-2">
-              <button
-                className="btn-primary"
-                onClick={() => copyToClipboard('powershell -c "irm https://openclaw.ai/install.ps1 | iex"')}
-              >
-                Copy install command
-              </button>
-              <button
-                className="btn-secondary"
-                onClick={() => copyToClipboard('setx OPENCLAW_AUTO_INSTALL false')}
-              >
-                Copy disable auto-install
-              </button>
-            </div>
-          </div>
-
-          <div className="bg-bg-800 border border-border/50 rounded-xl p-4">
-            <h3 className="font-semibold">Zapier</h3>
-            <p className="text-sm text-muted mb-3">
-              Zapier integration is manual. After installing the Zapier app, run the backend command to deploy or update the integration.
-            </p>
-            <div className="flex flex-wrap gap-2">
-              <button
-                className="btn-primary"
-                onClick={() => copyToClipboard('python manage.py ensure_zapier_integration')}
-              >
-                Copy backend command
-              </button>
-              <a
-                href="/dashboard/ingest"
-                className="btn-secondary"
-              >
-                View ingestion settings
-              </a>
-            </div>
-          </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+          <div className="critical-page-item"><span>Ingest completed</span><strong>{kpiCounts.frontend_ingest_completed || 0}</strong></div>
+          <div className="critical-page-item"><span>Approvals completed</span><strong>{kpiCounts.frontend_approve_completed || 0}</strong></div>
+          <div className="critical-page-item"><span>Chats completed</span><strong>{kpiCounts.frontend_chat_completed || 0}</strong></div>
+          <div className="critical-page-item"><span>Pages opened</span><strong>{kpiCounts.frontend_page_opened || 0}</strong></div>
         </div>
       </div>
 
@@ -175,7 +196,7 @@ export default function SettingsPage() {
       <div className="card">
         <div className="flex justify-between items-center mb-2">
           <div>
-            <h2 className="text-xl font-bold">Category Organization</h2>
+            <h2 className="text-xl font-bold" style={{ color: 'var(--text-primary)' }}>Category Organization</h2>
             <p className="panel-sub">Use the LLM to propose categories for all wiki pages, then review and apply.</p>
           </div>
           <button className="btn-primary" onClick={handleReorganize} disabled={reorgLoading}>
@@ -250,7 +271,7 @@ export default function SettingsPage() {
 
       <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
         <div className="flex flex-col gap-1" style={{ padding: '1.25rem', borderBottom: '1px solid var(--border)' }}>
-          <h2 className="text-xl font-bold">Contradiction Hub</h2>
+          <h2 className="text-xl font-bold" style={{ color: 'var(--text-primary)' }}>Contradiction Hub</h2>
           <p className="panel-sub">Review and resolve claims that conflict across sources.</p>
         </div>
 
@@ -286,7 +307,7 @@ export default function SettingsPage() {
       </div>
 
       <div className="card">
-        <h2 className="text-xl font-bold mb-2">Critical Pages</h2>
+        <h2 className="text-xl font-bold mb-2" style={{ color: 'var(--text-primary)' }}>Critical Pages</h2>
         <p className="panel-sub mb-4">Changes to these pages always require human review.</p>
 
         <div className="flex flex-wrap gap-2 mb-4">

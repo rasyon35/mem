@@ -581,7 +581,7 @@ export default function GraphViewer({ onNodeClick }: { onNodeClick?: (title: str
               style={{ color: 'var(--text-primary)', border: 'none', padding: 0 }}
               placeholder="Search topics…"
             />
-            <button onClick={fetchGraphData} className="btn-primary text-[10px] py-1.5 px-3 rounded-lg font-black tracking-widest uppercase">Refresh</button>
+            <button onClick={() => fetchGraphData()} className="btn-primary text-[10px] py-1.5 px-3 rounded-lg font-black tracking-widest uppercase">Refresh</button>
           </div>
         </div>
 
@@ -841,7 +841,7 @@ export default function GraphViewer({ onNodeClick }: { onNodeClick?: (title: str
               {/* Wiki link */}
               <div style={{ padding: '24px 32px' }}>
                 <Link
-                  href={`/dashboard/wiki?page=${encodeURIComponent(detailNode.id)}`}
+                  href={`/dashboard/markdown?page=${encodeURIComponent(detailNode.id)}`}
                   className="flex items-center justify-between w-full rounded-2xl border transition-all group"
                   style={{ padding: '20px 24px', background: 'var(--bg-600)', borderColor: 'var(--border)' }}
                 >
@@ -891,7 +891,7 @@ export default function GraphViewer({ onNodeClick }: { onNodeClick?: (title: str
                       {sources.map(s => (
                         <Link
                           key={s.title}
-                          href={`/dashboard/wiki?page=${s.title}`}
+                          href={`/dashboard/markdown?page=${encodeURIComponent(s.title)}`}
                           className="flex items-center rounded-2xl border transition-all group"
                           style={{ gap: '16px', padding: '16px 20px', background: 'var(--bg-600)', borderColor: 'var(--border)' }}
                         >

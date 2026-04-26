@@ -19,3 +19,5 @@ numpy
 scikit-learn
 chromadb
 xhtml2pdf
+celery
+redis

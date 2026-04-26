@@ -7,6 +7,7 @@
   --bg-700: hsl(var(--h), 18%, 12%);
   --bg-600: hsl(var(--h), 16%, 16%);
   --bg-500: hsl(var(--h), 14%, 20%);
+  --bg-950: hsl(var(--h), 24%, 4%);
   
   --text-primary: hsl(var(--h), 20%, 96%);
   --text-secondary: hsl(var(--h), 12%, 75%);
@@ -24,6 +25,51 @@
   --warning: hsl(45, 90%, 60%);
   --danger: hsl(355, 75%, 65%);
 
+  /* Legacy aliases (keep existing feature CSS working) */
+  --green: var(--success);
+  --yellow: var(--warning);
+  --red: var(--danger);
+  --green-bg: hsla(162, 70%, 48%, 0.14);
+  --yellow-bg: hsla(45, 90%, 60%, 0.14);
+  --red-bg: hsla(355, 75%, 65%, 0.14);
+  --border-accent: hsla(var(--accent-h), 85%, 55%, 0.35);
+
+  /* Spacing (Notion-like rhythm) */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-7: 32px;
+  --space-8: 40px;
+  --space-9: 48px;
+  --space-10: 64px;
+
+  --page-padding-x: 40px;
+  --page-padding-y: 32px;
+  --reading-max-w: 980px;
+
+  /* Typography */
+  --font-sans: 'Inter', system-ui, sans-serif;
+  --font-display: 'Outfit', system-ui, sans-serif;
+  --text-base: 14px;
+  --leading-base: 1.55;
+  --heading-1: 2rem;     /* ~32px */
+  --heading-2: 1.35rem;  /* ~22px */
+
+  /* Surfaces / borders / shadows */
+  --surface-1: hsl(var(--h), 20%, 8%);
+  --surface-2: hsl(var(--h), 18%, 11%);
+  --surface-3: hsl(var(--h), 16%, 14%);
+
+  --border-subtle: hsla(0, 0%, 100%, 0.06);
+  --border-strong: hsla(0, 0%, 100%, 0.10);
+  --ring: hsla(var(--accent-h), 100%, 69%, 0.32);
+
+  --shadow-1: 0 1px 2px rgba(0,0,0,0.25);
+  --shadow-2: 0 10px 30px rgba(0,0,0,0.35);
+
   /* Glassmorphism */
   --glass-bg: hsla(var(--h), 20%, 12%, 0.45);
   --glass-border: hsla(0, 0%, 100%, 0.08);
@@ -39,6 +85,8 @@
   --radius-md: 14px;
   --radius-lg: 24px;
   --radius-xl: 32px;
+  --radius-2xl: 40px;
+  --radius: var(--radius-md);
   
   --sidebar-w: 260px;
   --panel-max-w: 1340px;
@@ -48,10 +96,12 @@
   --ease: cubic-bezier(0.4, 0, 0.2, 1);
   --t-fast: 150ms var(--ease);
   --t-normal: 250ms var(--ease);
+  --t-slow: 400ms var(--ease);
 }
 
 /* ── Light Mode ── */
 [data-theme="light"] {
+  --bg-950: hsl(var(--h), 22%, 98%);
   --bg-900: hsl(var(--h), 20%, 96%);
   --bg-800: hsl(var(--h), 18%, 93%);
   --bg-700: hsl(var(--h), 16%, 90%);
@@ -72,12 +122,30 @@
   --warning: hsl(45, 85%, 48%);
   --danger: hsl(355, 70%, 50%);
 
+  --green: var(--success);
+  --yellow: var(--warning);
+  --red: var(--danger);
+  --green-bg: hsla(162, 60%, 40%, 0.12);
+  --yellow-bg: hsla(45, 85%, 48%, 0.12);
+  --red-bg: hsla(355, 70%, 50%, 0.12);
+  --border-accent: hsla(var(--accent-h), 85%, 55%, 0.30);
+
+  --surface-1: hsl(var(--h), 20%, 98%);
+  --surface-2: hsl(var(--h), 18%, 96%);
+  --surface-3: hsl(var(--h), 16%, 93%);
+
   --glass-bg: hsla(var(--h), 20%, 92%, 0.6);
   --glass-border: hsla(var(--h), 20%, 70%, 0.2);
   --glass-heavy-bg: hsla(var(--h), 18%, 94%, 0.85);
 
   --border: hsla(var(--h), 15%, 60%, 0.18);
   --border-hover: hsla(var(--h), 15%, 50%, 0.3);
+  --border-subtle: hsla(var(--h), 15%, 60%, 0.18);
+  --border-strong: hsla(var(--h), 15%, 50%, 0.30);
+  --ring: hsla(var(--accent-h), 85%, 55%, 0.25);
+
+  --shadow-1: 0 1px 2px rgba(0,0,0,0.06);
+  --shadow-2: 0 12px 28px rgba(0,0,0,0.10);
 }
 
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -85,10 +153,11 @@
 html, body { height: 100%; }
 
 body {
-  font-family: 'Inter', system-ui, sans-serif;
+  font-family: var(--font-sans);
+  font-size: var(--text-base);
   background: var(--bg-900);
   color: var(--text-primary);
-  line-height: 1.6;
+  line-height: var(--leading-base);
   -webkit-font-smoothing: antialiased;
   transition: background 0.3s ease, color 0.3s ease;
 }

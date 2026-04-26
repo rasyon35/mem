@@ -15,8 +15,8 @@ class SemanticIndex:
     """Handles vector embedding generation, storage, and search for wiki pages using ChromaDB."""
 
     def __init__(self):
-        self.wiki_dir = Path(settings.BASE_DIR).parent / "workspace" / "wiki"
-        self.index_dir = Path(settings.BASE_DIR).parent / "workspace" / "_chroma_index"
+        self.wiki_dir = Path(settings.WORKSPACE_WIKI_DIR)
+        self.index_dir = Path(settings.WORKSPACE_INDEX_DIR)
         
         self.index_dir.mkdir(parents=True, exist_ok=True)
 
