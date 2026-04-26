@@ -4,13 +4,13 @@ import axios from 'axios';
 export function Modal({ isOpen, onClose, title, children }: { isOpen: boolean; onClose: () => void; title: string; children: React.ReactNode }) {
   if (!isOpen) return null;
   return (
-    <div className="modal-overlay" onClick={onClose}>
-      <div className="modal-content" onClick={e => e.stopPropagation()}>
-        <div className="modal-header">
-          <h3 className="text-lg font-bold">{title}</h3>
-          <button className="btn-close" onClick={onClose}>&times;</button>
+    <div className="modal-overlay animate-fade-in" onClick={onClose}>
+      <div className="modal-content animate-modal-in" onClick={e => e.stopPropagation()}>
+        <div className="modal-header bg-gradient-to-r from-surface-2 to-surface-3 border-b border-border-subtle">
+          <h3 className="text-lg font-bold text-text-primary">{title}</h3>
+          <button className="btn-close hover:bg-white/10 transition-colors rounded-lg p-2" onClick={onClose}>&times;</button>
         </div>
-        <div className="modal-body">
+        <div className="modal-body overflow-y-auto custom-scrollbar">
           {children}
         </div>
       </div>
@@ -39,11 +39,15 @@ export function DiffView({ oldText, newText }: { oldText: string; newText: strin
   }
 
   return (
-    <div className="diff-container" style={{ maxHeight: '60vh', overflowY: 'auto' }}>
+    <div className="diff-container rounded-lg border border-border-subtle bg-surface-3/50 overflow-y-auto custom-scrollbar" style={{ maxHeight: '60vh' }}>
       {diffLines.map((l, idx) => (
-        <div key={idx} className={`diff-line diff-${l.type}`}>
-          <span className="diff-line-num">{idx + 1}</span>
-          <span>{l.type === 'added' ? '+ ' : l.type === 'removed' ? '- ' : '  '}{l.text}</span>
+        <div key={idx} className={`diff-line diff-${l.type} px-4 py-2 border-b border-border-subtle transition-colors hover:bg-white/5 ${
+          l.type === 'added' ? 'bg-success/5 text-success' : 
+          l.type === 'removed' ? 'bg-error/5 text-error' : 
+          'text-text-secondary'
+        }`}>
+          <span className="diff-line-num text-xs opacity-50 mr-3">{String(idx + 1).padStart(4, ' ')}</span>
+          <span className="font-mono text-sm">{l.type === 'added' ? '+ ' : l.type === 'removed' ? '- ' : '  '}{l.text}</span>
         </div>
       ))}
     </div>
