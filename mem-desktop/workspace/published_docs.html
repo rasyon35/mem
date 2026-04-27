@@ -1,0 +1,1134 @@
+
+    <!DOCTYPE html>
+    <html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Memos Public Documentation</title>
+        <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
+        <style>
+            :root { --bg: #050505; --text: #e0e0e0; --accent: #00ffcc; --card: #111; --border: #222; }
+            body { font-family: 'Inter', sans-serif; background: var(--bg); color: var(--text); line-height: 1.6; margin: 0; padding: 0; }
+            .container { max-width: 900px; margin: 0 auto; padding: 4rem 2rem; }
+            header { border-bottom: 1px solid var(--border); padding-bottom: 2rem; margin-bottom: 4rem; }
+            h1 { font-weight: 800; font-size: 3rem; margin: 0; color: #fff; letter-spacing: -0.04em; }
+            .page-card { background: var(--card); border: 1px solid var(--border); border-radius: 24px; padding: 2rem; margin-bottom: 3rem; }
+            h2 { color: var(--accent); font-size: 1.5rem; margin-top: 0; }
+            .content { font-size: 1.05rem; color: #ccc; }
+            pre { background: #000; padding: 1rem; border-radius: 12px; overflow-x: auto; border: 1px solid #333; }
+            code { font-family: monospace; color: var(--accent); }
+            a { color: var(--accent); text-decoration: none; }
+            a:hover { text-decoration: underline; }
+            nav { position: sticky; top: 0; background: rgba(5,5,5,0.8); backdrop-filter: blur(10px); padding: 1rem 0; border-bottom: 1px solid var(--border); z-index: 100; }
+            .nav-inner { max-width: 900px; margin: 0 auto; display: flex; gap: 1rem; overflow-x: auto; }
+            .nav-link { font-size: 0.8rem; font-weight: 600; text-transform: uppercase; color: #666; white-space: nowrap; }
+        </style>
+    </head>
+    <body>
+        <nav><div class="nav-inner">
+    <a href="#Main_Courses" class="nav-link">Main Courses</a><a href="#Why_Physics_Is_Powerful" class="nav-link">Why Physics Is Powerful</a><a href="#accessories" class="nav-link">accessories</a><a href="#numpy" class="nav-link">numpy</a><a href="#django" class="nav-link">django</a><a href="#Paleolithic_Age" class="nav-link">Paleolithic Age</a><a href="#What_Is_Physics?" class="nav-link">What Is Physics?</a><a href="#Eigenvalues_&_Eigenvectors" class="nav-link">Eigenvalues & Eigenvectors</a><a href="#analysis-explain-about-history-1777294075" class="nav-link">analysis-explain-about-history-1777294075</a><a href="#Classical_Civilizations_Expansion" class="nav-link">Classical Civilizations Expansion</a><a href="#Industrial_Revolution" class="nav-link">Industrial Revolution</a><a href="#Classical_Civilizations" class="nav-link">Classical Civilizations</a><a href="#log" class="nav-link">log</a><a href="#entity-page" class="nav-link">entity-page</a><a href="#analysis-explain-the-main-context-1777273943" class="nav-link">analysis-explain-the-main-context-1777273943</a><a href="#Accessories" class="nav-link">Accessories</a><a href="#Main_Goal_of_Physics" class="nav-link">Main Goal of Physics</a><a href="#Physical_Geography" class="nav-link">Physical Geography</a><a href="#analysis-explain-about-the-topic-1777291854" class="nav-link">analysis-explain-about-the-topic-1777291854</a><a href="#Geography" class="nav-link">Geography</a><a href="#Location" class="nav-link">Location</a><a href="#Labour" class="nav-link">Labour</a><a href="#Simple_Analogy" class="nav-link">Simple Analogy</a><a href="#target-page" class="nav-link">target-page</a><a href="#Course_1:_Foundations_of_AI_Math" class="nav-link">Course 1: Foundations of AI Math</a><a href="#VAT_(15%)" class="nav-link">VAT (15%)</a><a href="#analysis-summarize-the-most-important-themes-in-my-workspace-1777226929" class="nav-link">analysis-summarize-the-most-important-themes-in-my-workspace-1777226929</a><a href="#Human_Geography" class="nav-link">Human Geography</a><a href="#analysis-explain-this-page-1777206011" class="nav-link">analysis-explain-this-page-1777206011</a><a href="#Human-Environment_Interaction" class="nav-link">Human-Environment Interaction</a><a href="#analysis-explain-about-physics-1777302075" class="nav-link">analysis-explain-about-physics-1777302075</a><a href="#Gradient_Descent" class="nav-link">Gradient Descent</a><a href="#Place" class="nav-link">Place</a><a href="#Maps" class="nav-link">Maps</a><a href="#restore-page" class="nav-link">restore-page</a><a href="#analysis-explain-about-vector-1777227030" class="nav-link">analysis-explain-about-vector-1777227030</a><a href="#analysis-what-pages-should-i-review-next-and-why-1777227019" class="nav-link">analysis-what-pages-should-i-review-next-and-why-1777227019</a><a href="#pandas" class="nav-link">pandas</a><a href="#analysis-create-durable-artifact-1777206286" class="nav-link">analysis-create-durable-artifact-1777206286</a><a href="#CAT_6_wire" class="nav-link">CAT 6 wire</a><a href="#Core_Concept" class="nav-link">Core Concept</a><a href="#Camera_imou_cruiser_5MP" class="nav-link">Camera imou cruiser 5MP</a><a href="#The_Four_Fundamental_Forces_of_Nature" class="nav-link">The Four Fundamental Forces of Nature</a><a href="#analysis-explain-the-current-page-1777292078" class="nav-link">analysis-explain-the-current-page-1777292078</a><a href="#Matrices_&_Linear_Transformations" class="nav-link">Matrices & Linear Transformations</a><a href="#Why_Geography_Matters" class="nav-link">Why Geography Matters</a><a href="#Earth_has_7_continents_and_5_oceans." class="nav-link">Earth has 7 continents and 5 oceans.</a><a href="#Movement" class="nav-link">Movement</a><a href="#Fundamental_Quantities_in_Physics" class="nav-link">Fundamental Quantities in Physics</a><a href="#The_largest_country_by_land_area_is_Russia." class="nav-link">The largest country by land area is Russia.</a><a href="#Appointment_Information" class="nav-link">Appointment Information</a><a href="#analysis-explain-this-page-1777206430" class="nav-link">analysis-explain-this-page-1777206430</a><a href="#analysis-what-is-this-1777206310" class="nav-link">analysis-what-is-this-1777206310</a><a href="#analysis-create-durable-artifact-1777206476" class="nav-link">analysis-create-durable-artifact-1777206476</a><a href="#GPS" class="nav-link">GPS</a><a href="#Prehistory" class="nav-link">Prehistory</a><a href="#Geography_is_about_understanding_the_world’s_physical_features,_human_societies,_and_the_relationships_between_them—from_local_neighborhoods_to_global_systems." class="nav-link">Geography is about understanding the world’s physical features, human societies, and the relationships between them—from local neighborhoods to global systems.</a><a href="#joblib" class="nav-link">joblib</a><a href="#analysis-explain-this-page-1777206287" class="nav-link">analysis-explain-this-page-1777206287</a><a href="#Total" class="nav-link">Total</a><a href="#analysis-explain-about-the-wiki-matrics-1777290278" class="nav-link">analysis-explain-about-the-wiki-matrics-1777290278</a><a href="#Tools_Geographers_Use" class="nav-link">Tools Geographers Use</a><a href="#Modern_Era_Influences" class="nav-link">Modern Era Influences</a><a href="#tools_geographers_use" class="nav-link">tools geographers use</a><a href="#analysis-explain-the-wiki-1777291971" class="nav-link">analysis-explain-the-wiki-1777291971</a><a href="#Why_Mathematics_Matters" class="nav-link">Why Mathematics Matters</a><a href="#analysis-summerize-the-wiki-1777292051" class="nav-link">analysis-summerize-the-wiki-1777292051</a><a href="#Entity_Page" class="nav-link">Entity Page</a><a href="#Fun_Facts" class="nav-link">Fun Facts</a><a href="#analysis-explain-the-ai-math-playground-1777277293" class="nav-link">analysis-explain-the-ai-math-playground-1777277293</a><a href="#History" class="nav-link">History</a><a href="#Memory_128GB" class="nav-link">Memory 128GB</a><a href="#Performa_Invoice" class="nav-link">Performa Invoice</a><a href="#Satellite_imagery" class="nav-link">Satellite imagery</a><a href="#Ancient_Civilizations" class="nav-link">Ancient Civilizations</a><a href="#index" class="nav-link">index</a><a href="#djangorestframework" class="nav-link">djangorestframework</a><a href="#Renaissance" class="nav-link">Renaissance</a><a href="#Website_Structure" class="nav-link">Website Structure</a><a href="#analysis-eplain-about-eigenvectors-1777304049" class="nav-link">analysis-eplain-about-eigenvectors-1777304049</a><a href="#ai_math_playground" class="nav-link">ai math playground</a><a href="#analysis-explain-this-page-1777206476" class="nav-link">analysis-explain-this-page-1777206476</a><a href="#Region" class="nav-link">Region</a><a href="#django-crontab" class="nav-link">django-crontab</a><a href="#Django" class="nav-link">Django</a><a href="#Major_Historical_Figures" class="nav-link">Major Historical Figures</a><a href="#Perspective_on_History" class="nav-link">Perspective on History</a><a href="#Climate_models" class="nav-link">Climate models</a><a href="#analysis-what-is-this-1777206287" class="nav-link">analysis-what-is-this-1777206287</a><a href="#New_Markdown_Page" class="nav-link">New Markdown Page</a><a href="#scikit-learn" class="nav-link">scikit-learn</a><a href="#analysis-what-is-this-1777206011" class="nav-link">analysis-what-is-this-1777206011</a><a href="#Vectors_&_Vector_Spaces" class="nav-link">Vectors & Vector Spaces</a><a href="#The_Scientific_Method_in_Physics" class="nav-link">The Scientific Method in Physics</a><a href="#Main_Branches_of_Geography" class="nav-link">Main Branches of Geography</a><a href="#analysis-explain-about-the-current-wiki-1777292007" class="nav-link">analysis-explain-about-the-current-wiki-1777292007</a><a href="#analysis-create-durable-artifact-1777206430" class="nav-link">analysis-create-durable-artifact-1777206430</a><a href="#analysis-summarize-the-contents-of-djangorestframework-1777292034" class="nav-link">analysis-summarize-the-contents-of-djangorestframework-1777292034</a><a href="#Module_Experience_–_Tabs_(8_Tabs_Per_Module)" class="nav-link">Module Experience – Tabs (8 Tabs Per Module)</a><a href="#eigenvalues__eigenvectors" class="nav-link">eigenvalues  eigenvectors</a><a href="#Key_Concepts_in_Geography" class="nav-link">Key Concepts in Geography</a><a href="#test-page" class="nav-link">test-page</a><a href="#Core_Branches_of_Physics" class="nav-link">Core Branches of Physics</a><a href="#Modern_Physics_Frontiers" class="nav-link">Modern Physics Frontiers</a><a href="#The_deepest_ocean_trench_is_the_Mariana_Trench." class="nav-link">The deepest ocean trench is the Mariana Trench.</a><a href="#Sub_Total" class="nav-link">Sub Total</a><a href="#analysis-explain-this-page-1777206310" class="nav-link">analysis-explain-this-page-1777206310</a><a href="#GIS_(Geographic_Information_Systems)" class="nav-link">GIS (Geographic Information Systems)</a><a href="#20th_Century" class="nav-link">20th Century</a><a href="#Scientific_Revolution" class="nav-link">Scientific Revolution</a><a href="#analysis-create-durable-artifact-1777206309" class="nav-link">analysis-create-durable-artifact-1777206309</a><a href="#About_71%_of_Earth’s_surface_is_covered_by_water." class="nav-link">About 71% of Earth’s surface is covered by water.</a><a href="#AI_Math_Playground" class="nav-link">AI Math Playground</a><a href="#analysis-what-is-this-1777206430" class="nav-link">analysis-what-is-this-1777206430</a><a href="#analysis-hi-1777273919" class="nav-link">analysis-hi-1777273919</a><a href="#analysis-what-is-this-1777206476" class="nav-link">analysis-what-is-this-1777206476</a><a href="#graph-seed" class="nav-link">graph-seed</a><a href="#In_Simple_Terms" class="nav-link">In Simple Terms</a><a href="#analysis-create-durable-artifact-1777206011" class="nav-link">analysis-create-durable-artifact-1777206011</a>
+        </div></nav>
+        <div class="container">
+            <header>
+                <h1>Knowledge Base</h1>
+                <p style="color: #666;">Generated by MemOS OpenClaw on 2026-04-27</p>
+            </header>
+    
+        <div class="page-card" id="Main_Courses">
+            <h2>Main Courses</h2>
+            <div class="content"><ul>
+<li><strong>Course 1: Foundations of AI Math</strong>
+  Vectors &amp; Vector Spaces, Matrices &amp; Linear Transformations, Eigenvalues &amp; Eigenvectors, Optimization Basics, Gradient Descent, Chain Rule &amp; Computation Graphs</li>
+<li><strong>Course 2: Neural Network Mathematics</strong>
+  Linear Layers to Neural Nets, Activation Functions &amp; Non-Linearity, Backpropagation, Loss Functions &amp; Geometry</li>
+<li><strong>Course 3: Optimization &amp; Training Dynamics</strong>
+  Advanced Optimizers (Momentum, Adam), Loss Landscapes &amp; Regularization, Learning Rate Schedules &amp; Convergence</li>
+<li><strong>Course 4: Advanced AI Systems Math</strong>
+  Embeddings &amp; High-Dimensional Spaces, Attention Mechanisms, Transformers &amp; Self-Attention, Diffusion Models – Score Functions</li>
+<li><strong>Course 5: Probability &amp; Statistics for AI</strong>
+  Probability Fundamentals, Common Distributions, Statistical Inference, Bayesian Statistics, Dimensionality Reduction &amp; PCA</li>
+<li><strong>Course 6: Stochastic Processes &amp; Generative Modeling</strong>
+  Stochastic Processes &amp; Markov Chains, Stochastic Differential Equations, Full Diffusion Model Mathematics, Flow Matching &amp; Continuous Normalizing Flows</li>
+</ul></div>
+        </div>
+        
+        <div class="page-card" id="Why_Physics_Is_Powerful">
+            <h2>Why Physics Is Powerful</h2>
+            <div class="content"><p>Physics helps humanity: Build technology Understand the cosmos Solve engineering problems Create medicine Explore space</p></div>
+        </div>
+        
+        <div class="page-card" id="accessories">
+            <h2>accessories</h2>
+            <div class="content"><p>1 unit of Accessories at 1,900 ETB.</p></div>
+        </div>
+        
+        <div class="page-card" id="numpy">
+            <h2>numpy</h2>
+            <div class="content"><p>A library for the Python programming language, adding support for large, multi-dimensional arrays and matrices, along with a large collection of high-level mathematical functions to operate on these arrays.</p></div>
+        </div>
+        
+        <div class="page-card" id="django">
+            <h2>django</h2>
+            <div class="content"><p>A high-level Python web framework that encourages rapid development and clean, pragmatic design.</p>
+<p>A high-level Python web framework that encourages rapid development and clean, pragmatic design.</p></div>
+        </div>
+        
+        <div class="page-card" id="Paleolithic_Age">
+            <h2>Paleolithic Age</h2>
+            <div class="content"><p>The Paleolithic Age, or Old Stone Age, was defined by hunting and gathering, while the Neolithic Revolution around 10,000 BCE marked one of the most important turning points in human development: agriculture.</p></div>
+        </div>
+        
+        <div class="page-card" id="What_Is_Physics?">
+            <h2>What Is Physics?</h2>
+            <div class="content"><p>Physics is the branch of science that studies matter, energy, motion, space, and time, and the laws that govern how the universe behaves.</p></div>
+        </div>
+        
+        <div class="page-card" id="Eigenvalues_&_Eigenvectors">
+            <h2>Eigenvalues & Eigenvectors</h2>
+            <div class="content"><p>Visual Gallery (4 scenes):
+  1. 3D ellipsoid with principal axes glowing (eigenvectors).
+  2. Real-time matrix input showing how eigenvectors stretch/shrink.
+  3. Animation of transformation along eigenvector directions only.
+  4. PCA example on 3D point cloud (covariance eigenvectors).
+Main Playground: Drag matrix sliders and see eigenvectors automatically align and scale.</p></div>
+        </div>
+        
+        <div class="page-card" id="analysis-explain-about-history-1777294075">
+            <h2>analysis-explain-about-history-1777294075</h2>
+            <div class="content"><h1>Analysis 2026-04-27 12:47</h1>
+<p>The question asks to explain about history. Based on the provided wiki pages, here's an explanation:</p>
+<p>History is the vast, interconnected story of humanity—an evolving record of how societies, ideas, technologies, conflicts, and cultures have shaped the world across thousands of years. [[History]]</p>
+<p>The earliest chapter of history begins with prehistory, the long era before written records. During this time, early humans evolved in Africa, gradually developing tools, language, social structures, and survival strategies. [[Prehistory]]</p>
+<p>It's worth noting that the wiki pages also mention that the main context of the wiki is about educational concepts and mathematical topics, specifically focusing on AI and machine learning. However, this does not directly relate to the concept of history. [[analysis-explain-the-main-context-1777273943]]</p></div>
+        </div>
+        
+        <div class="page-card" id="Classical_Civilizations_Expansion">
+            <h2>Classical Civilizations Expansion</h2>
+            <div class="content"><p>Classical civilizations expanded the complexity of human society. Ancient Greece introduced democratic concepts, philosophy, and scientific reasoning through figures like Socrates, Plato, and Aristotle. Greek city-states such as Athens and Sparta represented contrasting political and military systems. Rome, initially a republic and later an empire, became one of history’s most influential powers, spreading legal systems, engineering, military organization, and language across Europe, North Africa, and the Middle East. In Asia, powerful empires and intellectual traditions, including Confucianism and Buddhism, shaped social and spiritual life for millions.</p></div>
+        </div>
+        
+        <div class="page-card" id="Industrial_Revolution">
+            <h2>Industrial Revolution</h2>
+            <div class="content"><p>The Industrial Revolution then transformed economies from agrarian to mechanized systems, accelerating urbanization, technological progress, and global capitalism, but also creating harsh labor conditions and inequality.</p></div>
+        </div>
+        
+        <div class="page-card" id="Classical_Civilizations">
+            <h2>Classical Civilizations</h2>
+            <div class="content"><p>Classical civilizations expanded the complexity of human society. Ancient Greece introduced democratic concepts, philosophy, and scientific reasoning through figures like Socrates, Plato, and Aristotle.</p></div>
+        </div>
+        
+        <div class="page-card" id="log">
+            <h2>log</h2>
+            <div class="content"><h2>[2026-04-27 16:06:50] ingest | History.md</h2>
+<ul>
+<li>Summary: The provided source document adds new information about the history of human societies, including the emergence of ancient civilizations, the expansion of classical civilizations, the Renaissance, and the modern era. The updated pages reflect the complexities of human societies and the limitations o</li>
+<li>New pages: 4</li>
+<li>Updated pages: 2</li>
+<li>Contradictions: 0</li>
+</ul>
+<h2>[2026-04-27 16:01:36] ingest | History.md</h2>
+<ul>
+<li>Summary: This new perspective on history challenges the traditional view of a linear progression from primitive societies to advanced modern systems. Instead, it highlights the role of power and authority in shaping our understanding of the past.</li>
+<li>New pages: 1</li>
+<li>Updated pages: 1</li>
+<li>Contradictions: 1</li>
+</ul>
+<h2>[2026-04-27 14:58:56] ingest | Physics.md</h2>
+<ul>
+<li>Summary: The document provides an overview of physics, its core branches, fundamental quantities, and historical figures. It also discusses the importance of mathematics in physics and the current frontiers of modern physics.</li>
+<li>New pages: 11</li>
+<li>Updated pages: 0</li>
+<li>Contradictions: 0</li>
+</ul>
+<h2>[2026-04-27 14:49:40] ingest | chat.md</h2>
+<ul>
+<li>Summary: The new markdown page will remove the top navbar chatbot, add auto-approve checkpoint for new markdown files, and display a pop-out window for review when publishing. The Entity Page and Module Experience – Tabs (8 Tabs Per Module) pages have no changes.</li>
+<li>New pages: 1</li>
+<li>Updated pages: 2</li>
+<li>Contradictions: 0</li>
+</ul>
+<h2>[2026-04-27 14:10:52] ingest | Geography.md</h2>
+<ul>
+<li>Summary: This update adds new information about the study of geography, its importance, and the tools used by geographers. It also adds new fun facts and key concepts in geography.</li>
+<li>New pages: 17</li>
+<li>Updated pages: 7</li>
+<li>Contradictions: 0</li>
+</ul>
+<h2>[2026-04-27 12:59:30] ingest | geography.md</h2>
+<ul>
+<li>Summary: Geography is a study of Earth’s landscapes, environments, and human interactions. It has two main branches: Physical Geography and Human Geography. Geography helps us understand climate change, predict natural disasters, and improve transportation.</li>
+<li>New pages: 7</li>
+<li>Updated pages: 0</li>
+<li>Contradictions: 0</li>
+</ul>
+<h2>[2026-04-27 12:46:48] ingest | History.md</h2>
+<ul>
+<li>Summary: The history of humanity is a vast and interconnected story that spans thousands of years, with various civilizations emerging, flourishing, and falling. From prehistory to the modern era, human societies have been shaped by technological advancements, cultural exchange, and conflict.</li>
+<li>New pages: 9</li>
+<li>Updated pages: 0</li>
+<li>Contradictions: 0</li>
+</ul>
+<h2>[2026-04-26 23:12:51] ingest | Performa Invoice.docx</h2>
+<ul>
+<li>Summary: A performa invoice for a project in Addis Ababa, Ethiopia, including items such as Camera imou cruiser 5MP, Memory 128GB, CAT 6 wire, Accessories, and Labour, with a total cost of 34,960 ETB.</li>
+<li>New pages: 9</li>
+<li>Updated pages: 0</li>
+<li>Contradictions: 0</li>
+</ul>
+<h2>[2026-04-26 12:17:25] ingest | requirements.txt</h2>
+<ul>
+<li>Summary: The provided requirements.txt file lists the following dependencies: Django, djangorestframework, numpy, pandas, scikit-learn, joblib, and django-crontab.</li>
+<li>New pages: 7</li>
+<li>Updated pages: 0</li>
+<li>Contradictions: 0</li>
+</ul>
+<h2>[2026-04-26 11:37:26] ingest | Untitled document.docx</h2>
+<ul>
+<li>Summary: AI Math Playground is a web platform that teaches AI math using interactive 3D visualizations, guided lessons, and challenges.</li>
+<li>New pages: 10</li>
+<li>Updated pages: 0</li>
+<li>Contradictions: 0</li>
+</ul>
+<h1>Mem Wiki Log</h1>
+<h2>[2026-04-26 11:12:32] ingest | Appointment.pdf</h2>
+<ul>
+<li>Summary: New page created: Appointment Information</li>
+<li>New pages: 1</li>
+<li>Updated pages: 0</li>
+<li>Contradictions: 0</li>
+</ul></div>
+        </div>
+        
+        <div class="page-card" id="entity-page">
+            <h2>entity-page</h2>
+            <div class="content"><p>OpenAI builds systems with ChatGPT Agents.</p></div>
+        </div>
+        
+        <div class="page-card" id="analysis-explain-the-main-context-1777273943">
+            <h2>analysis-explain-the-main-context-1777273943</h2>
+            <div class="content"><h1>Analysis 2026-04-27 07:12</h1>
+<p>The main context of the provided wiki pages is about educational concepts and mathematical topics, specifically focusing on AI and machine learning. The pages cover courses such as Foundations of AI Math, Neural Network Mathematics, and various mathematical concepts like vectors, matrices, and eigenvalues.</p>
+<p>The main courses are outlined in [[Main_Courses]], and the wiki structure is established with clear categories and concepts. The [[Vectors_&amp;<em>Vector_Spaces]] and [[Matrices</em>&amp;_Linear_Transformations]] pages provide visual galleries and interactive visualizations to help understand these concepts.</p>
+<p>The wiki also includes analysis pages that provide information about the existing content, such as [[analysis-explain-about-vector-1777227030]] and [[analysis-what-pages-should-i-review-next-and-why-1777227019]]. However, the question "hi" is not addressed in any of the provided wiki pages.</p>
+<p>Therefore, the answer to the question is: The wiki doesn't have information about this yet.</p></div>
+        </div>
+        
+        <div class="page-card" id="Accessories">
+            <h2>Accessories</h2>
+            <div class="content"><p>1 unit of Accessories at 1,900 ETB.</p></div>
+        </div>
+        
+        <div class="page-card" id="Main_Goal_of_Physics">
+            <h2>Main Goal of Physics</h2>
+            <div class="content"><p>Physics tries to: 1. Describe Nature Understand what happens in the universe. 2. Predict Behavior Use equations and laws to predict outcomes. 3. Unify Forces Find simple laws behind complex phenomena.</p></div>
+        </div>
+        
+        <div class="page-card" id="Physical_Geography">
+            <h2>Physical Geography</h2>
+            <div class="content"><p>This focuses on natural features and processes of the Earth, including:
+Mountains, rivers, deserts, and oceans
+Climate and weather systems
+Earthquakes, volcanoes, and plate tectonics
+Ecosystems, vegetation, and soils
+Examples:
+Why the Himalayas are the highest mountains
+How the Nile River supports civilizations
+Why deserts like the Sahara form</p></div>
+        </div>
+        
+        <div class="page-card" id="analysis-explain-about-the-topic-1777291854">
+            <h2>analysis-explain-about-the-topic-1777291854</h2>
+            <div class="content"><h1>Analysis 2026-04-27 12:10</h1>
+<p>Based on the provided wiki pages, here's an explanation of the topic:</p>
+<p><strong>Main Context:</strong>
+The main context of the wiki pages is about educational concepts and mathematical topics, specifically focusing on AI and machine learning. The pages cover courses such as Foundations of AI Math, Neural Network Mathematics, and various mathematical concepts like vectors, matrices, and eigenvalues. [[Analysis 2026-04-27 07:12]]</p>
+<p><strong>Wiki Metrics:</strong>
+Unfortunately, the wiki pages do not explicitly mention "wiki metrics." However, I can infer that the wiki pages are using metrics to track the progress of the courses and concept development. [[Analysis 2026-04-27 11:44]]</p>
+<p><strong>Hello (Greeting):</strong>
+There is no relevant information in the provided wiki pages to answer this question. The wiki pages contain information about various concepts, but they do not address a greeting like "hi". [[Analysis 2026-04-27 07:11]]</p>
+<p><strong>Vectors:</strong>
+A vector is a concept discussed in [[Vectors &amp;_Vector_Spaces]]. According to this page, a vector is a fundamental concept in mathematics and computer science. However, the specific definition of a vector is not provided in this wiki page. [[Analysis 2026-04-26 18:10]]</p>
+<p><strong>Properties of Vectors:</strong>
+In [[Vectors &amp;_Vector_Spaces]], vectors are described as having certain properties, such as magnitude and direction. However, the specific details of these properties are not provided in this wiki page. [[Analysis 2026-04-26 18:10]]</p>
+<p><strong>Eigenvalues &amp; Eigenvectors:</strong>
+Eigenvalues and eigenvectors are concepts discussed in [[Eigenvalues &amp;_Eigenvectors]]. According to this page, eigenvalues are scalar values that represent how much a linear transformation changes a vector, while eigenvectors are the vectors that are scaled by these eigenvalues. [[Eigenvalues &amp;_Eigenvectors]]</p>
+<p><strong>Gradient Descent:</strong>
+Gradient descent is a concept discussed in [[Gradient_Descent]]. According to this page, gradient descent is an optimization algorithm used to find the minimum of a function by iteratively moving in the direction of the negative gradient. [[Gradient_Descent]]</p></div>
+        </div>
+        
+        <div class="page-card" id="Geography">
+            <h2>Geography</h2>
+            <div class="content"><p>Geography is the study of Earth—its landscapes, environments, places, and how humans interact with them. It helps explain where things are, why they are there, and how natural systems and human societies shape one another.</p></div>
+        </div>
+        
+        <div class="page-card" id="Location">
+            <h2>Location</h2>
+            <div class="content"><p>Absolute location: Exact coordinates (latitude/longitude)
+Relative location: Position compared to other places</p></div>
+        </div>
+        
+        <div class="page-card" id="Labour">
+            <h2>Labour</h2>
+            <div class="content"><p>1 unit of Labour at 3,000 ETB.</p></div>
+        </div>
+        
+        <div class="page-card" id="Simple_Analogy">
+            <h2>Simple Analogy</h2>
+            <div class="content"><p>If the universe were a giant machine, physics is the instruction manual explaining how every part works.</p></div>
+        </div>
+        
+        <div class="page-card" id="target-page">
+            <h2>target-page</h2>
+            <div class="content"><p>Existing</p>
+<p>New paragraph line</p></div>
+        </div>
+        
+        <div class="page-card" id="Course_1:_Foundations_of_AI_Math">
+            <h2>Course 1: Foundations of AI Math</h2>
+            <div class="content"><p>Vectors &amp; Vector Spaces, Matrices &amp; Linear Transformations, Eigenvalues &amp; Eigenvectors, Optimization Basics, Gradient Descent, Chain Rule &amp; Computation Graphs</p></div>
+        </div>
+        
+        <div class="page-card" id="VAT_(15%)">
+            <h2>VAT (15%)</h2>
+            <div class="content"><p>4,560 ETB.</p></div>
+        </div>
+        
+        <div class="page-card" id="analysis-summarize-the-most-important-themes-in-my-workspace-1777226929">
+            <h2>analysis-summarize-the-most-important-themes-in-my-workspace-1777226929</h2>
+            <div class="content"><p>Artifact reverted by user.</p></div>
+        </div>
+        
+        <div class="page-card" id="Human_Geography">
+            <h2>Human Geography</h2>
+            <div class="content"><p>This studies people, cultures, economies, and political systems across space:
+Population distribution
+Cities and urbanization
+Migration
+Trade
+Languages and cultures
+Borders and geopolitics
+Examples:
+Why cities like Tokyo become megacities
+How globalization connects countries
+Why some regions are densely populated while others are sparse</p></div>
+        </div>
+        
+        <div class="page-card" id="analysis-explain-this-page-1777206011">
+            <h2>analysis-explain-this-page-1777206011</h2>
+            <div class="content"><h1>Analysis 2026-04-26 12:20</h1>
+<p>Context-aware answer</p></div>
+        </div>
+        
+        <div class="page-card" id="Human-Environment_Interaction">
+            <h2>Human-Environment Interaction</h2>
+            <div class="content"><p>How humans adapt to, modify, and depend on nature.</p></div>
+        </div>
+        
+        <div class="page-card" id="analysis-explain-about-physics-1777302075">
+            <h2>analysis-explain-about-physics-1777302075</h2>
+            <div class="content"><h1>Analysis 2026-04-27 15:01</h1>
+<p>Based on the provided wiki pages, here's an explanation about physics:</p>
+<p>Physics is the branch of science that studies matter, energy, motion, space, and time, and the laws that govern how the universe behaves [[What_Is_Physics?]]. It can be thought of as the instruction manual explaining how every part of the universe works [[Simple_Analogy]].</p>
+<p>There are core branches of physics, including:</p>
+<ol>
+<li>Classical Mechanics, which studies motion and forces [[Core_Branches_of_Physics]]. Key ideas include velocity, acceleration, force, mass, momentum, and energy, with Newton's Laws being a fundamental concept.</li>
+<li>Thermodynamics, which studies heat, temperature, and energy transfer. Main concepts include heat flowing from hot to cold.</li>
+</ol>
+<p>The main goal of physics is to:</p>
+<ol>
+<li>Describe Nature</li>
+<li>Predict Behavior</li>
+<li>Unify Forces [[Main_Goal_of_Physics]].</li>
+</ol>
+<p>Overall, physics aims to understand and explain the behavior of the universe through the laws and principles that govern it.</p></div>
+        </div>
+        
+        <div class="page-card" id="Gradient_Descent">
+            <h2>Gradient Descent</h2>
+            <div class="content"><p>Visual Gallery (6 scenes):
+  1. Interactive 3D loss surface (bowl, saddle, ravine) with draggable starting point.
+  2. Live gradient vector arrows at any point.</p></div>
+        </div>
+        
+        <div class="page-card" id="Place">
+            <h2>Place</h2>
+            <div class="content"><p>The physical and human characteristics that make a location unique.</p></div>
+        </div>
+        
+        <div class="page-card" id="Maps">
+            <h2>Maps</h2>
+            <div class="content"></div>
+        </div>
+        
+        <div class="page-card" id="restore-page">
+            <h2>restore-page</h2>
+            <div class="content"><p>Before</p></div>
+        </div>
+        
+        <div class="page-card" id="analysis-explain-about-vector-1777227030">
+            <h2>analysis-explain-about-vector-1777227030</h2>
+            <div class="content"><h1>Analysis 2026-04-26 18:10</h1>
+<p><strong>What is a vector?</strong></p>
+<p>A vector is a concept discussed in [[Vectors_&amp;_Vector_Spaces]]. According to this page, a vector is a fundamental concept in mathematics and computer science. However, the specific definition of a vector is not provided in this wiki page.</p>
+<p><strong>Properties of vectors</strong></p>
+<p>In [[Matrices_&amp;_Linear_Transformations]], we can see that vectors are used as inputs for linear transformations, which are represented by matrices. This suggests that vectors have certain properties, such as being able to be added, subtracted, and scaled.</p>
+<p><strong>Visual representation of vectors</strong></p>
+<p>The wiki page [[Vectors_&amp;_Vector_Spaces]] has a visual gallery with a 3D coordinate grid with draggable vector arrows, which allows users to interactively explore vector addition, subtraction, and scaling.</p>
+<p><strong>Relationship between vectors and other concepts</strong></p>
+<p>Vectors are also related to other concepts, such as eigenvalues and eigenvectors, as discussed in [[Eigenvalues_&amp;_Eigenvectors]]. This suggests that vectors play a crucial role in understanding these concepts.</p>
+<p><strong>No specific definition provided</strong></p>
+<p>Unfortunately, the wiki pages do not provide a specific definition of a vector. However, they do provide some context and examples of how vectors are used in various mathematical and computational contexts.</p></div>
+        </div>
+        
+        <div class="page-card" id="analysis-what-pages-should-i-review-next-and-why-1777227019">
+            <h2>analysis-what-pages-should-i-review-next-and-why-1777227019</h2>
+            <div class="content"><h1>Analysis 2026-04-26 18:10</h1>
+<p>To decide which pages to review next, let's analyze the existing content.</p>
+<p>The wiki structure is already established with clear categories and concepts. The main courses (see [[Main_Courses]]) are outlined, but Course 3 is incomplete.</p>
+<p>The [[Module_Experience_–<em>Tabs</em>(8_Tabs_Per_Module)]] page provides a detailed breakdown of each tab within a module, but it seems to be missing information on the remaining tabs.</p>
+<p>Additionally, the [[Core_Concept]] page provides an overview of the AI Math Playground, but it's a high-level concept and doesn't offer much depth.</p>
+<p>Considering the existing content, I recommend reviewing the following pages next:</p>
+<ol>
+<li><strong>Course 3:</strong> Complete the information on Course 3 in [[Main_Courses]] to provide a comprehensive list of courses.</li>
+<li><strong>Module 3 Tabs:</strong> Expand on the remaining tabs in [[Module_Experience_–<em>Tabs</em>(8_Tabs_Per_Module)]] to provide a complete understanding of the module structure.</li>
+<li><strong>Core Concept Details:</strong> Delve deeper into the [[Core_Concept]] page to provide more specific information on the AI Math Playground's features, such as guided lessons, playgrounds, challenges, and notes.</li>
+</ol>
+<p>These revisions will enhance the wiki's content and provide a more comprehensive understanding of the AI Math Playground.</p></div>
+        </div>
+        
+        <div class="page-card" id="pandas">
+            <h2>pandas</h2>
+            <div class="content"><p>A software library written for the Python programming language for data manipulation and analysis.</p></div>
+        </div>
+        
+        <div class="page-card" id="analysis-create-durable-artifact-1777206286">
+            <h2>analysis-create-durable-artifact-1777206286</h2>
+            <div class="content"><h1>Analysis 2026-04-26 12:24</h1>
+<p>Durable answer</p></div>
+        </div>
+        
+        <div class="page-card" id="CAT_6_wire">
+            <h2>CAT 6 wire</h2>
+            <div class="content"><p>1 unit of CAT 6 wire at 7,500 ETB.</p></div>
+        </div>
+        
+        <div class="page-card" id="Core_Concept">
+            <h2>Core Concept</h2>
+            <div class="content"><p>AI Math Playground is a beautiful, modern web platform dedicated exclusively to teaching the mathematical foundations of AI using highly interactive 3D visualizations, guided lessons, playgrounds, challenges, and extensive notes.</p></div>
+        </div>
+        
+        <div class="page-card" id="Camera_imou_cruiser_5MP">
+            <h2>Camera imou cruiser 5MP</h2>
+            <div class="content"><p>1 unit of Camera imou cruiser 5MP at 16,000 ETB.</p></div>
+        </div>
+        
+        <div class="page-card" id="The_Four_Fundamental_Forces_of_Nature">
+            <h2>The Four Fundamental Forces of Nature</h2>
+            <div class="content"><ol>
+<li>Gravity Attracts masses. 2. Electromagnetic Force Between charged particles. 3. Strong Nuclear Force Holds atomic nuclei together. 4. Weak Nuclear Force Responsible for radioactive decay.</li>
+</ol></div>
+        </div>
+        
+        <div class="page-card" id="analysis-explain-the-current-page-1777292078">
+            <h2>analysis-explain-the-current-page-1777292078</h2>
+            <div class="content"><h1>Analysis 2026-04-27 12:14</h1>
+<p>Based on the provided wiki pages, the current page appears to be a collection of educational concepts and mathematical topics, specifically focusing on AI and machine learning. </p>
+<p>The main context of the wiki pages is about educational concepts and mathematical topics, specifically focusing on AI and machine learning [[analysis-explain-the-main-context-1777273943]]. The wiki covers various courses such as Foundations of AI Math, Neural Network Mathematics, and discusses concepts like vectors, matrices, and eigenvalues.</p>
+<p>The wiki structure is established, and the main courses are outlined, but Course 3 is incomplete [[analysis-what-pages-should-i-review-next-and-why-1777227019]].</p></div>
+        </div>
+        
+        <div class="page-card" id="Matrices_&_Linear_Transformations">
+            <h2>Matrices & Linear Transformations</h2>
+            <div class="content"><p>Visual Gallery (5 scenes):
+  1. 3D grid of points transformed by any 2×2 or 3×3 matrix (real-time shear, rotate, scale).
+  2. Before/after side-by-side animated transformation.
+  3. Determinant visualization (volume scaling with color-coded sign).
+  4. Basis vector transformation (how standard basis changes).
+  5. Singular value decomposition breakdown.
+Main Playground: Drag any matrix entries and watch the entire space warp live.</p></div>
+        </div>
+        
+        <div class="page-card" id="Why_Geography_Matters">
+            <h2>Why Geography Matters</h2>
+            <div class="content"><p>Geography helps us:
+Predict natural disasters
+Understand climate change
+Plan cities
+Manage resources
+Study international relations
+Improve transportation</p></div>
+        </div>
+        
+        <div class="page-card" id="Earth_has_7_continents_and_5_oceans.">
+            <h2>Earth has 7 continents and 5 oceans.</h2>
+            <div class="content"></div>
+        </div>
+        
+        <div class="page-card" id="Movement">
+            <h2>Movement</h2>
+            <div class="content"><p>How people, goods, and ideas travel across Earth.</p></div>
+        </div>
+        
+        <div class="page-card" id="Fundamental_Quantities_in_Physics">
+            <h2>Fundamental Quantities in Physics</h2>
+            <div class="content"><p>Base Quantities: Length (meter) Mass (kilogram) Time (second) Temperature (kelvin) Electric current (ampere)</p></div>
+        </div>
+        
+        <div class="page-card" id="The_largest_country_by_land_area_is_Russia.">
+            <h2>The largest country by land area is Russia.</h2>
+            <div class="content"></div>
+        </div>
+        
+        <div class="page-card" id="Appointment_Information">
+            <h2>Appointment Information</h2>
+            <div class="content"><p>የአዲስ አበባ ከተማ አስተዳደር Addis Ababa City Government Land
+መሬት ልማትና አስተዳደር ቢሮ Development &amp; Administration Bureau
+የቀጠሮ መረጃ
+Appointment Information
+ቀን:
+Thu, Apr 09 2026
+Date:
+ማስገቢያ:
+Morning 2
+Slot:
+ሰዓት:
+03:30 - 04:30
+Time:
+ሠራተኛ:
+Kidist Tadese
+Employee:</p></div>
+        </div>
+        
+        <div class="page-card" id="analysis-explain-this-page-1777206430">
+            <h2>analysis-explain-this-page-1777206430</h2>
+            <div class="content"><h1>Analysis 2026-04-26 12:27</h1>
+<p>Context-aware answer</p></div>
+        </div>
+        
+        <div class="page-card" id="analysis-what-is-this-1777206310">
+            <h2>analysis-what-is-this-1777206310</h2>
+            <div class="content"><h1>Analysis 2026-04-26 12:25</h1>
+<p>Mocked response</p></div>
+        </div>
+        
+        <div class="page-card" id="analysis-create-durable-artifact-1777206476">
+            <h2>analysis-create-durable-artifact-1777206476</h2>
+            <div class="content"><h1>Analysis 2026-04-26 12:27</h1>
+<p>Durable answer</p></div>
+        </div>
+        
+        <div class="page-card" id="GPS">
+            <h2>GPS</h2>
+            <div class="content"></div>
+        </div>
+        
+        <div class="page-card" id="Prehistory">
+            <h2>Prehistory</h2>
+            <div class="content"><p>The earliest chapter of history begins with prehistory, the long era before written records. During this time, early humans evolved in Africa, gradually developing tools, language, social structures, and survival strategies.</p></div>
+        </div>
+        
+        <div class="page-card" id="Geography_is_about_understanding_the_world’s_physical_features,_human_societies,_and_the_relationships_between_them—from_local_neighborhoods_to_global_systems.">
+            <h2>Geography is about understanding the world’s physical features, human societies, and the relationships between them—from local neighborhoods to global systems.</h2>
+            <div class="content"></div>
+        </div>
+        
+        <div class="page-card" id="joblib">
+            <h2>joblib</h2>
+            <div class="content"><p>A set of tools to provide lightweight pipelining in Python.</p></div>
+        </div>
+        
+        <div class="page-card" id="analysis-explain-this-page-1777206287">
+            <h2>analysis-explain-this-page-1777206287</h2>
+            <div class="content"><h1>Analysis 2026-04-26 12:24</h1>
+<p>Context-aware answer</p></div>
+        </div>
+        
+        <div class="page-card" id="Total">
+            <h2>Total</h2>
+            <div class="content"><p>34,960 ETB.</p></div>
+        </div>
+        
+        <div class="page-card" id="analysis-explain-about-the-wiki-matrics-1777290278">
+            <h2>analysis-explain-about-the-wiki-matrics-1777290278</h2>
+            <div class="content"><h1>Analysis 2026-04-27 11:44</h1>
+<p>Based on the provided wiki pages, I will explain about the wiki metrics.</p>
+<p>Unfortunately, the wiki pages do not explicitly mention "wiki metrics." However, I can infer that the wiki pages are using metrics to track the progress of the courses and concept development. For example, the [[Main_Courses]] page lists the courses with their respective topics, and the [[numpy]] page mentions the library's support for large, multi-dimensional arrays and matrices.</p>
+<p>However, there is a page called [[Matrices_&amp;_Linear_Transformations]] which discusses matrices and linear transformations, which is a fundamental concept in mathematics and computer science.</p>
+<p>To provide more insight, I would recommend reviewing the following pages:</p>
+<ul>
+<li>[[Main_Courses]]: To understand the overall structure of the courses and concept development.</li>
+<li>[[Matrices_&amp;_Linear_Transformations]]: To learn more about matrices and linear transformations.</li>
+<li>[[numpy]]: To understand the library's support for large, multi-dimensional arrays and matrices.</li>
+</ul>
+<p>These pages will provide a better understanding of the wiki's content and how it is structured.</p></div>
+        </div>
+        
+        <div class="page-card" id="Tools_Geographers_Use">
+            <h2>Tools Geographers Use</h2>
+            <div class="content"><p>Maps
+GIS (Geographic Information Systems)
+Satellite imagery
+GPS
+Climate models</p></div>
+        </div>
+        
+        <div class="page-card" id="Modern_Era_Influences">
+            <h2>Modern Era Influences</h2>
+            <div class="content"><p>The modern era was profoundly influenced by revolutions. The Scientific Revolution challenged traditional authority through reason and experimentation. The Enlightenment promoted liberty, equality, and human rights. These ideas inspired political upheavals such as the American Revolution and the French Revolution, both of which redefined governance. The Industrial Revolution then transformed economies from agrarian to mechanized systems, accelerating urbanization, technological progress, and global capitalism, but also creating harsh labor conditions and inequality.</p></div>
+        </div>
+        
+        <div class="page-card" id="tools_geographers_use">
+            <h2>tools geographers use</h2>
+            <div class="content"><p>Maps</p>
+<p>GIS (Geographic Information Systems)</p>
+<p>Satellite imagery</p>
+<p>Climate model</p></div>
+        </div>
+        
+        <div class="page-card" id="analysis-explain-the-wiki-1777291971">
+            <h2>analysis-explain-the-wiki-1777291971</h2>
+            <div class="content"><h1>Analysis 2026-04-27 12:12</h1>
+<p>Based on the provided wiki pages, here's an explanation of the wiki:</p>
+<p>The main context of the wiki pages is about educational concepts and mathematical topics, specifically focusing on AI and machine learning [[analysis-explain-the-main-context-1777273943]]. The wiki covers various courses such as Foundations of AI Math, Neural Network Mathematics, and mathematical concepts like vectors, matrices, and eigenvalues [[Main_Courses]].</p>
+<p>The wiki structure is established with clear categories and concepts. The main courses are outlined, but Course 3 is incomplete [[analysis-what-pages-should-i-review-next-and-why-1777227019]]. The wiki uses metrics to track the progress of the courses and concept development, although it does not explicitly mention "wiki metrics" [[analysis-explain-about-the-wiki-matrics-1777290278]].</p>
+<p>The wiki contains information about various concepts, including vectors [[analysis-explain-about-vector-1777227030]]. According to the wiki, a vector is a fundamental concept in mathematics and computer science, but the specific definition of a vector is not provided in the wiki page.</p>
+<p>The wiki also contains information about the numpy library, which is a library for the Python programming language that adds support for large, multi-dimensional arrays and matrices [[numpy]].</p>
+<p>Overall, the wiki appears to be a collection of notes and concepts related to AI and machine learning, with a focus on mathematical topics and educational concepts.</p></div>
+        </div>
+        
+        <div class="page-card" id="Why_Mathematics_Matters">
+            <h2>Why Mathematics Matters</h2>
+            <div class="content"><p>Physics uses math as its language. Examples: Algebra Calculus Trigonometry Statistics Without math, physical laws cannot be expressed precisely.</p></div>
+        </div>
+        
+        <div class="page-card" id="analysis-summerize-the-wiki-1777292051">
+            <h2>analysis-summerize-the-wiki-1777292051</h2>
+            <div class="content"><h1>Analysis 2026-04-27 12:14</h1>
+<p><strong>Summary of the Wiki:</strong></p>
+<p>The wiki is a collection of educational concepts and mathematical topics, specifically focusing on AI and machine learning [[analysis-explain-the-main-context-1777273943]]. It covers various courses such as Foundations of AI Math, Neural Network Mathematics, and discusses concepts like vectors, matrices, and eigenvalues [[analysis-explain-about-the-topic-1777291854]].</p>
+<p>The wiki structure is established with clear categories and concepts, but Course 3 is incomplete [[analysis-what-pages-should-i-review-next-and-why-1777227019]]. The wiki uses metrics to track the progress of the courses and concept development, but the specific metrics are not explicitly mentioned [[analysis-explain-about-the-wiki-matrics-1777290278]].</p>
+<p>The wiki also mentions other topics, such as Django and Django REST framework, but these are not the main focus of the wiki [[analysis-summarize-the-contents-of-djangorestframework-1777292034]].</p>
+<p><strong>Key Concepts:</strong></p>
+<ul>
+<li>AI and machine learning</li>
+<li>Vectors, matrices, and eigenvalues</li>
+<li>Foundations of AI Math and Neural Network Mathematics</li>
+<li>Django and Django REST framework (not main focus)</li>
+</ul>
+<p><strong>Sources:</strong></p>
+<ul>
+<li>[[analysis-explain-the-main-context-1777273943]]</li>
+<li>[[analysis-explain-about-the-topic-1777291854]]</li>
+<li>[[analysis-what-pages-should-i-review-next-and-why-1777227019]]</li>
+<li>[[analysis-explain-about-the-wiki-matrics-1777290278]]</li>
+<li>[[analysis-summarize-the-contents-of-djangorestframework-1777292034]]</li>
+</ul></div>
+        </div>
+        
+        <div class="page-card" id="Entity_Page">
+            <h2>Entity Page</h2>
+            <div class="content"><p>OpenAI builds systems with ChatGPT Agents.</p></div>
+        </div>
+        
+        <div class="page-card" id="Fun_Facts">
+            <h2>Fun Facts</h2>
+            <div class="content"><p>Earth has 7 continents and 5 oceans.
+About 71% of Earth’s surface is covered by water.
+The deepest ocean trench is the Mariana Trench.
+The largest country by land area is Russia.</p></div>
+        </div>
+        
+        <div class="page-card" id="analysis-explain-the-ai-math-playground-1777277293">
+            <h2>analysis-explain-the-ai-math-playground-1777277293</h2>
+            <div class="content"><h1>Analysis 2026-04-27 08:08</h1>
+<p>The AI Math Playground is a web platform dedicated to teaching the mathematical foundations of AI using highly interactive 3D visualizations, guided lessons, playgrounds, challenges, and extensive notes [[AI_Math_Playground]]. It covers various mathematical concepts, including vectors, matrices, eigenvalues, and linear transformations, with interactive visualizations and real-time examples [[Eigenvalues_&amp;<em>Eigenvectors]] [[Matrices</em>&amp;_Linear_Transformations]].</p>
+<p>Each module in the AI Math Playground has 8 dedicated tabs, including a Guided Lesson, Key Formulas &amp; Notes, and a Visual Gallery with multiple interactive 3D visualizations [[Module_Experience_–<em>Tabs</em>(8_Tabs_Per_Module)]].</p>
+<p>The platform aims to provide a comprehensive and engaging learning experience for students and professionals looking to understand the mathematical foundations of AI [[Core_Concept]].</p></div>
+        </div>
+        
+        <div class="page-card" id="History">
+            <h2>History</h2>
+            <div class="content"><p>History is the vast, interconnected story of humanity—an evolving record of how societies, ideas, technologies, conflicts, and cultures have shaped the world across thousands of years. It is not simply a collection of dates and events, but a study of cause and consequence: why civilizations rose, why empires fell, how revolutions transformed societies, and how ordinary people influenced extraordinary change. By examining history deeply, we gain insight into human ambition, struggle, creativity, and resilience.</p></div>
+        </div>
+        
+        <div class="page-card" id="Memory_128GB">
+            <h2>Memory 128GB</h2>
+            <div class="content"><p>1 unit of Memory 128GB at 2,000 ETB.</p></div>
+        </div>
+        
+        <div class="page-card" id="Performa_Invoice">
+            <h2>Performa Invoice</h2>
+            <div class="content"><p>Performa Invoice to Mierab Gebeya Adarash Aksion Maher, Addis Ababa, Ethiopia. Terms and Conditions: Price includes 15% VAT, payment is 50% after completion, and warranty is 6 months repair or replace.</p></div>
+        </div>
+        
+        <div class="page-card" id="Satellite_imagery">
+            <h2>Satellite imagery</h2>
+            <div class="content"></div>
+        </div>
+        
+        <div class="page-card" id="Ancient_Civilizations">
+            <h2>Ancient Civilizations</h2>
+            <div class="content"><p>Ancient civilizations emerged in fertile river valleys where geography supported agriculture. In Mesopotamia, between the Tigris and Euphrates rivers, the Sumerians built some of the world’s first cities and developed cuneiform, one of the earliest writing systems. Ancient Egypt flourished along the Nile, creating monumental architecture like the pyramids and a highly centralized state under pharaohs. The Indus Valley Civilization in South Asia demonstrated advanced urban planning, while Ancient China along the Yellow River developed dynasties, philosophical systems, and innovations such as paper and gunpowder. These civilizations laid the foundation for law, governance, religion, mathematics, and trade.</p></div>
+        </div>
+        
+        <div class="page-card" id="index">
+            <h2>index</h2>
+            <div class="content"><h1>Wiki Index</h1>
+<h2>CONCEPTS</h2>
+<ul>
+<li>[[20th_Century]]: title: 20th Century</li>
+<li>[[AI_Math_Playground]]: title: AI Math Playground</li>
+<li>[[About_71%_of_Earth’s_surface_is_covered_by_water.]]: title: About 71% of Earth’s surface is covered by water.</li>
+<li>[[Accessories]]: title: Accessories</li>
+<li>[[Ancient_Civilizations]]: title: Ancient Civilizations</li>
+<li>[[Appointment_Information]]: title: Appointment Information</li>
+<li>[[CAT_6_wire]]: title: CAT 6 wire</li>
+<li>[[Camera_imou_cruiser_5MP]]: title: Camera imou cruiser 5MP</li>
+<li>[[Classical_Civilizations]]: title: Classical Civilizations</li>
+<li>[[Classical_Civilizations_Expansion]]: title: Classical Civilizations Expansion</li>
+<li>[[Climate_models]]: title: Climate models</li>
+<li>[[Core_Branches_of_Physics]]: title: Core Branches of Physics</li>
+<li>[[Core_Concept]]: title: Core Concept</li>
+<li>[[Course_1:_Foundations_of_AI_Math]]: title: Course 1: Foundations of AI Math</li>
+<li>[[Django]]: title: Django</li>
+<li>[[Earth_has_7_continents_and_5_oceans.]]: title: Earth has 7 continents and 5 oceans.</li>
+<li>[[Eigenvalues_&amp;_Eigenvectors]]: title: Eigenvalues &amp; Eigenvectors</li>
+<li>[[Entity_Page]]: OpenAI builds systems with ChatGPT Agents.</li>
+<li>[[Fun_Facts]]: title: Fun Facts</li>
+<li>[[Fundamental_Quantities_in_Physics]]: title: Fundamental Quantities in Physics</li>
+<li>[[GIS_(Geographic_Information_Systems)]]: title: GIS (Geographic Information Systems)</li>
+<li>[[GPS]]: created: 2026-04-27T14:10:52.220053</li>
+<li>[[Geography]]: title: Geography</li>
+<li>[[Geography_is_about_understanding_the_world’s_physical_features,_human_societies,_and_the_relationships_between_them—from_local_neighborhoods_to_global_systems.]]: title: Geography is about understanding the world’s physical features, human societies, and the rela</li>
+<li>[[Gradient_Descent]]: title: Gradient Descent</li>
+<li>[[History]]: title: History</li>
+<li>[[Human-Environment_Interaction]]: title: Human-Environment Interaction</li>
+<li>[[Human_Geography]]: title: Human Geography</li>
+<li>[[In_Simple_Terms]]: title: In Simple Terms</li>
+<li>[[Industrial_Revolution]]: title: Industrial Revolution</li>
+<li>[[Key_Concepts_in_Geography]]: title: Key Concepts in Geography</li>
+<li>[[Labour]]: title: Labour</li>
+<li>[[Location]]: title: Location</li>
+<li>[[Main_Branches_of_Geography]]: title: Main Branches of Geography</li>
+<li>[[Main_Courses]]: title: Main Courses</li>
+<li>[[Main_Goal_of_Physics]]: title: Main Goal of Physics</li>
+<li>[[Major_Historical_Figures]]: title: Major Historical Figures</li>
+<li>[[Maps]]: title: Maps</li>
+<li>[[Matrices_&amp;_Linear_Transformations]]: title: Matrices &amp; Linear Transformations</li>
+<li>[[Memory_128GB]]: title: Memory 128GB</li>
+<li>[[Modern_Era_Influences]]: title: Modern Era Influences</li>
+<li>[[Modern_Physics_Frontiers]]: title: Modern Physics Frontiers</li>
+<li>[[Module_Experience_–<em>Tabs</em>(8_Tabs_Per_Module)]]: title: Module Experience – Tabs (8 Tabs Per Module)</li>
+<li>[[Movement]]: title: Movement</li>
+<li>[[New_Markdown_Page]]: title: New Markdown Page</li>
+<li>[[Paleolithic_Age]]: title: Paleolithic Age</li>
+<li>[[Performa_Invoice]]: title: Performa Invoice</li>
+<li>[[Perspective_on_History]]: title: Perspective on History</li>
+<li>[[Physical_Geography]]: title: Physical Geography</li>
+<li>[[Place]]: title: Place</li>
+<li>[[Prehistory]]: title: Prehistory</li>
+<li>[[Region]]: title: Region</li>
+<li>[[Renaissance]]: title: Renaissance</li>
+<li>[[Satellite_imagery]]: title: Satellite imagery</li>
+<li>[[Scientific_Revolution]]: title: Scientific Revolution</li>
+<li>[[Simple_Analogy]]: title: Simple Analogy</li>
+<li>[[Sub_Total]]: title: Sub Total</li>
+<li>[[The_Four_Fundamental_Forces_of_Nature]]: title: The Four Fundamental Forces of Nature</li>
+<li>[[The_Scientific_Method_in_Physics]]: title: The Scientific Method in Physics</li>
+<li>[[The_deepest_ocean_trench_is_the_Mariana_Trench.]]: title: The deepest ocean trench is the Mariana Trench.</li>
+<li>[[The_largest_country_by_land_area_is_Russia.]]: title: The largest country by land area is Russia.</li>
+<li>[[Tools_Geographers_Use]]: title: Tools Geographers Use</li>
+<li>[[Total]]: title: Total</li>
+<li>[[VAT_(15%)]]: title: VAT (15%)</li>
+<li>[[Vectors_&amp;_Vector_Spaces]]: title: Vectors &amp; Vector Spaces</li>
+<li>[[Website_Structure]]: title: Website Structure</li>
+<li>[[What_Is_Physics?]]: title: What Is Physics?</li>
+<li>[[Why_Geography_Matters]]: title: Why Geography Matters</li>
+<li>[[Why_Mathematics_Matters]]: title: Why Mathematics Matters</li>
+<li>[[Why_Physics_Is_Powerful]]: title: Why Physics Is Powerful</li>
+<li>[[accessories]]: title: Accessories</li>
+<li>[[ai_math_playground]]: title: AI Math Playground</li>
+<li>[[analysis-create-durable-artifact-1777206011]]: title: Analysis 2026-04-26 12:20</li>
+<li>[[analysis-create-durable-artifact-1777206286]]: title: Analysis 2026-04-26 12:24</li>
+<li>[[analysis-create-durable-artifact-1777206309]]: title: Analysis 2026-04-26 12:25</li>
+<li>[[analysis-create-durable-artifact-1777206430]]: title: Analysis 2026-04-26 12:27</li>
+<li>[[analysis-create-durable-artifact-1777206476]]: title: Analysis 2026-04-26 12:27</li>
+<li>[[analysis-eplain-about-eigenvectors-1777304049]]: title: Analysis 2026-04-27 15:34</li>
+<li>[[analysis-explain-about-history-1777294075]]: title: Analysis 2026-04-27 12:47</li>
+<li>[[analysis-explain-about-physics-1777302075]]: title: Analysis 2026-04-27 15:01</li>
+<li>[[analysis-explain-about-the-current-wiki-1777292007]]: title: Analysis 2026-04-27 12:13</li>
+<li>[[analysis-explain-about-the-topic-1777291854]]: title: Analysis 2026-04-27 12:10</li>
+<li>[[analysis-explain-about-the-wiki-matrics-1777290278]]: title: Analysis 2026-04-27 11:44</li>
+<li>[[analysis-explain-about-vector-1777227030]]: title: Analysis 2026-04-26 18:10</li>
+<li>[[analysis-explain-the-ai-math-playground-1777277293]]: title: Analysis 2026-04-27 08:08</li>
+<li>[[analysis-explain-the-current-page-1777292078]]: title: Analysis 2026-04-27 12:14</li>
+<li>[[analysis-explain-the-main-context-1777273943]]: title: Analysis 2026-04-27 07:12</li>
+<li>[[analysis-explain-the-wiki-1777291971]]: title: Analysis 2026-04-27 12:12</li>
+<li>[[analysis-explain-this-page-1777206011]]: title: Analysis 2026-04-26 12:20</li>
+<li>[[analysis-explain-this-page-1777206287]]: title: Analysis 2026-04-26 12:24</li>
+<li>[[analysis-explain-this-page-1777206310]]: title: Analysis 2026-04-26 12:25</li>
+<li>[[analysis-explain-this-page-1777206430]]: title: Analysis 2026-04-26 12:27</li>
+<li>[[analysis-explain-this-page-1777206476]]: title: Analysis 2026-04-26 12:27</li>
+<li>[[analysis-hi-1777273919]]: title: Analysis 2026-04-27 07:11</li>
+<li>[[analysis-summarize-the-contents-of-djangorestframework-1777292034]]: title: Analysis 2026-04-27 12:13</li>
+<li>[[analysis-summarize-the-most-important-themes-in-my-workspace-1777226929]]: title: Analysis 2026-04-26 18:08</li>
+<li>[[analysis-summerize-the-wiki-1777292051]]: title: Analysis 2026-04-27 12:14</li>
+<li>[[analysis-what-is-this-1777206011]]: title: Analysis 2026-04-26 12:20</li>
+<li>[[analysis-what-is-this-1777206287]]: title: Analysis 2026-04-26 12:24</li>
+<li>[[analysis-what-is-this-1777206310]]: title: Analysis 2026-04-26 12:25</li>
+<li>[[analysis-what-is-this-1777206430]]: title: Analysis 2026-04-26 12:27</li>
+<li>[[analysis-what-is-this-1777206476]]: title: Analysis 2026-04-26 12:27</li>
+<li>[[analysis-what-pages-should-i-review-next-and-why-1777227019]]: title: Analysis 2026-04-26 18:10</li>
+<li>[[django-crontab]]: title: django-crontab</li>
+<li>[[django]]: title: Django</li>
+<li>[[djangorestframework]]: title: djangorestframework</li>
+<li>[[eigenvalues__eigenvectors]]: title: Eigenvalues &amp; Eigenvectors</li>
+<li>[[entity-page]]: title: Entity Page</li>
+<li>[[graph-seed]]: title: Graph Seed</li>
+<li>[[joblib]]: title: joblib</li>
+<li>[[numpy]]: title: numpy</li>
+<li>[[pandas]]: title: pandas</li>
+<li>[[restore-page]]: title: Restore Page</li>
+<li>[[scikit-learn]]: title: scikit-learn</li>
+<li>[[target-page]]: title: Target Page</li>
+<li>[[test-page]]: title: Test Page</li>
+<li>[[tools_geographers_use]]: title: Tools Geographers Use</li>
+</ul></div>
+        </div>
+        
+        <div class="page-card" id="djangorestframework">
+            <h2>djangorestframework</h2>
+            <div class="content"><p>A high-level Python web framework that encourages rapid development and clean, pragmatic design.</p></div>
+        </div>
+        
+        <div class="page-card" id="Renaissance">
+            <h2>Renaissance</h2>
+            <div class="content"><p>The Renaissance, beginning in the 14th century, marked a rebirth of art, science, and classical learning, especially in Europe. Thinkers and artists such as Leonardo da Vinci and Michelangelo transformed culture, while explorers like Columbus and Vasco da Gama connected continents through global exploration. However, this era also initiated colonization, exploitation, and the transatlantic slave trade—systems that reshaped populations and economies while causing immense suffering.</p></div>
+        </div>
+        
+        <div class="page-card" id="Website_Structure">
+            <h2>Website Structure</h2>
+            <div class="content"><ul>
+<li><strong>Homepage</strong>: Hero with live 3D preview, tagline, and buttons to start Course 1 free or unlock full platform.</li>
+<li><strong>Dashboard</strong>: Progress overview, streaks, course roadmap, and “Continue Learning” cards.</li>
+<li><strong>Courses Page</strong>: Visual cards for all 6 courses with progress bars.</li>
+<li><strong>Module Pages</strong>: Rich tabbed interface (detailed below).</li>
+</ul></div>
+        </div>
+        
+        <div class="page-card" id="analysis-eplain-about-eigenvectors-1777304049">
+            <h2>analysis-eplain-about-eigenvectors-1777304049</h2>
+            <div class="content"><h1>Analysis 2026-04-27 15:34</h1>
+<p>Based on the provided wiki pages, here's an explanation of eigenvectors:</p>
+<p><strong>What are Eigenvectors?</strong>
+Eigenvectors are vectors that, when a linear transformation is applied to them, result in a scaled version of themselves. They are essential in understanding how matrices transform vectors and are used in various applications, including Principal Component Analysis (PCA) and neural networks.</p>
+<p><strong>Visual Representation</strong>
+The wiki pages provide visual galleries and playgrounds to demonstrate the concept of eigenvectors. Scene 1 shows a 3D ellipsoid with principal axes glowing (eigenvectors), illustrating how eigenvectors are the directions of the principal axes of an ellipsoid. Scene 2 shows a real-time matrix input showing how eigenvectors stretch/shrink, demonstrating how eigenvectors change under a linear transformation.</p>
+<p><strong>Mathematical Definition</strong>
+Although the wiki pages do not provide a detailed mathematical definition of eigenvectors, they are mentioned as a key concept in Course 1: Foundations of AI Math, which covers vectors, matrices, and linear transformations.</p>
+<p><strong>Applications</strong>
+Eigenvectors have various applications, including PCA, which is demonstrated in Scene 4 of the visual gallery, showing an example on a 3D point cloud (covariance eigenvectors).</p>
+<p>Sources:
+- [[Eigenvalues_&amp;_Eigenvectors]]
+- [[Course_1:_Foundations_of_AI_Math]]
+- [[Main_Courses]]</p></div>
+        </div>
+        
+        <div class="page-card" id="ai_math_playground">
+            <h2>ai math playground</h2>
+            <div class="content"><p>AI Math Playground is a beautiful, modern web platform dedicated exclusively to teaching the mathematical foundations of AI using highly interactive 3Dvisualizations, guided lessons, playgrounds, challenges, and extensive n</p></div>
+        </div>
+        
+        <div class="page-card" id="analysis-explain-this-page-1777206476">
+            <h2>analysis-explain-this-page-1777206476</h2>
+            <div class="content"><h1>Analysis 2026-04-26 12:27</h1>
+<p>Context-aware answer</p></div>
+        </div>
+        
+        <div class="page-card" id="Region">
+            <h2>Region</h2>
+            <div class="content"><p>Areas grouped by common features:
+Physical (rainforest, desert)
+Cultural (language, religion)
+Economic (industrial zones)</p></div>
+        </div>
+        
+        <div class="page-card" id="django-crontab">
+            <h2>django-crontab</h2>
+            <div class="content"><p>A Django app that adds a cron system to your Django project.</p></div>
+        </div>
+        
+        <div class="page-card" id="Django">
+            <h2>Django</h2>
+            <div class="content"><p>A high-level Python web framework that encourages rapid development and clean, pragmatic design.</p></div>
+        </div>
+        
+        <div class="page-card" id="Major_Historical_Figures">
+            <h2>Major Historical Figures</h2>
+            <div class="content"><p>Isaac Newton — Motion and gravity Albert Einstein — Relativity Galileo Galilei — Motion and observation Niels Bohr — Atomic structure James Clerk Maxwell — Electromagnetism</p></div>
+        </div>
+        
+        <div class="page-card" id="Perspective_on_History">
+            <h2>Perspective on History</h2>
+            <div class="content"><p>History is not a truthful account of humanity but a reflection of authority. It is often portrayed as a linear progression from primitive societies to advanced modern systems, but this is misleading. Many societies were simply different in values and priorities, not objectively higher or lower in development.</p></div>
+        </div>
+        
+        <div class="page-card" id="Climate_models">
+            <h2>Climate models</h2>
+            <div class="content"></div>
+        </div>
+        
+        <div class="page-card" id="analysis-what-is-this-1777206287">
+            <h2>analysis-what-is-this-1777206287</h2>
+            <div class="content"><h1>Analysis 2026-04-26 12:24</h1>
+<p>Mocked response</p></div>
+        </div>
+        
+        <div class="page-card" id="New_Markdown_Page">
+            <h2>New Markdown Page</h2>
+            <div class="content"><p>remove the chatbot on the new markdown page which is found in the top navbar remove that chatbot completely do not remove the chat that is launched by the bottom zenchat button . and also add auto approve checkpoint for new markdown file which will allow to approve changes on the injestion processs for new markdown file without review . if the auto apprive is fale or off or not cheked their must pop out a window when publish is clicked and injest in done too review the changes . the popout window should be able to update the generated realtion ship and wiki's then note , if addition is needed it must add it there and also it must be editable</p></div>
+        </div>
+        
+        <div class="page-card" id="scikit-learn">
+            <h2>scikit-learn</h2>
+            <div class="content"><p>A free software machine learning library for Python and MATLAB.</p></div>
+        </div>
+        
+        <div class="page-card" id="analysis-what-is-this-1777206011">
+            <h2>analysis-what-is-this-1777206011</h2>
+            <div class="content"><h1>Analysis 2026-04-26 12:20</h1>
+<p>Mocked response</p></div>
+        </div>
+        
+        <div class="page-card" id="Vectors_&_Vector_Spaces">
+            <h2>Vectors & Vector Spaces</h2>
+            <div class="content"><p>Visual Gallery (5 scenes):
+  1. 3D coordinate grid with draggable vector arrows (addition, subtraction, scaling).
+  2. Cosine similarity angle highlighter with live numerical value.
+  3. Projection of one vector onto another with shadow and distance readout.
+  4. High-dimensional projection (2D→3D slice) showing nearest neighbors.
+  5. Word embedding arithmetic (King – Man + Woman = Queen) with moving vectors.
+Main Playground: Full 3D space where users create and manipulate up to 8 vectors simultaneously.</p></div>
+        </div>
+        
+        <div class="page-card" id="The_Scientific_Method_in_Physics">
+            <h2>The Scientific Method in Physics</h2>
+            <div class="content"><p>Observe Hypothesize Experiment Analyze Form laws or theories</p></div>
+        </div>
+        
+        <div class="page-card" id="Main_Branches_of_Geography">
+            <h2>Main Branches of Geography</h2>
+            <div class="content"><ol>
+<li>Physical Geography
+This focuses on natural features and processes of the Earth, including:
+Mountains, rivers, deserts, and oceans
+Climate and weather systems
+Earthquakes, volcanoes, and plate tectonics
+Ecosystems, vegetation, and soils
+Examples:
+Why the Himalayas are the highest mountains
+How the Nile River supports civilizations
+Why deserts like the Sahara form</li>
+<li>Human Geography
+This studies people, cultures, economies, and political systems across space:
+Population distribution
+Cities and urbanization
+Migration
+Trade
+Languages and cultures
+Borders and geopolitics
+Examples:
+Why cities like Tokyo become megacities
+How globalization connects countries
+Why some regions are densely populated while others are sparse</li>
+</ol></div>
+        </div>
+        
+        <div class="page-card" id="analysis-explain-about-the-current-wiki-1777292007">
+            <h2>analysis-explain-about-the-current-wiki-1777292007</h2>
+            <div class="content"><h1>Analysis 2026-04-27 12:13</h1>
+<p>The wiki appears to be a collection of educational concepts and mathematical topics, specifically focusing on AI and machine learning. It covers various courses such as Foundations of AI Math, Neural Network Mathematics, and discusses concepts like vectors, matrices, and eigenvalues.</p>
+<p>The wiki structure is established with clear categories and concepts, and the main courses are outlined in the [[Main_Courses]] page. However, Course 3 is incomplete.</p>
+<p>Some specific pages that might be of interest to review next include the [[Module_Experience_–<em>Tabs</em>(8_Tabs_Per_Module)]] page, which discusses the module experience and tabs, and the [[Vectors_&amp;_Vector_Spaces]] page, which provides information on vectors and vector spaces.</p>
+<p>In terms of the current state of the wiki, it seems to be a work in progress, with some pages still incomplete. However, the existing content provides a solid foundation for further development.</p>
+<p>As for the question "explain about the current wiki," the answer is that the wiki is a collection of educational concepts and mathematical topics focused on AI and machine learning, with a structure and content that is still being developed.</p>
+<p>Sources:</p>
+<ul>
+<li>[[analysis-explain-the-main-context-1777273943]]</li>
+<li>[[analysis-explain-about-the-wiki-matrics-1777290278]]</li>
+<li>[[analysis-explain-the-wiki-1777291971]]</li>
+<li>[[analysis-explain-about-the-topic-1777291854]]</li>
+<li>[[analysis-hi-1777273919]]</li>
+<li>[[analysis-what-pages-should-i-review-next-and-why-1777227019]]</li>
+<li>[[analysis-explain-about-vector-1777227030]]</li>
+<li>[[Main_Courses]]</li>
+</ul></div>
+        </div>
+        
+        <div class="page-card" id="analysis-create-durable-artifact-1777206430">
+            <h2>analysis-create-durable-artifact-1777206430</h2>
+            <div class="content"><h1>Analysis 2026-04-26 12:27</h1>
+<p>Durable answer</p></div>
+        </div>
+        
+        <div class="page-card" id="analysis-summarize-the-contents-of-djangorestframework-1777292034">
+            <h2>analysis-summarize-the-contents-of-djangorestframework-1777292034</h2>
+            <div class="content"><h1>Analysis 2026-04-27 12:13</h1>
+<p>Based on the provided wiki pages, here is a summary of the contents of [[djangorestframework]]:</p>
+<p>[[djangorestframework]] appears to be a high-level Python web framework that encourages rapid development and clean, pragmatic design. This is also mentioned in [[Django]], which is another high-level Python web framework with the same description. However, it seems that [[djangorestframework]] is not a separate framework from [[Django]], as the information is identical.</p>
+<p>The only additional information about [[djangorestframework]] is a duplicate of the description from [[Django]].</p>
+<p>Therefore, based on the provided wiki pages, the contents of [[djangorestframework]] can be summarized as a high-level Python web framework that encourages rapid development and clean, pragmatic design, which is identical to [[Django]].</p></div>
+        </div>
+        
+        <div class="page-card" id="Module_Experience_–_Tabs_(8_Tabs_Per_Module)">
+            <h2>Module Experience – Tabs (8 Tabs Per Module)</h2>
+            <div class="content"><p>Every module has these 8 dedicated tabs:
+1. <strong>Guided Lesson</strong> – Clear text explanation with geometric intuition and “Why this matters in real AI”.
+2. <strong>Key Formulas &amp; Notes</strong> – All important formulas in KaTeX + concise handwritten-style notes and common pitfalls.
+3. <strong>Visual Gallery</strong> – Multiple (4–6) interactive 3D visualizations sid</p></div>
+        </div>
+        
+        <div class="page-card" id="eigenvalues__eigenvectors">
+            <h2>eigenvalues  eigenvectors</h2>
+            <div class="content"><p>Visual Gallery (4 scenes):</p>
+<ol>
+<li>
+<p>3D ellipsoid with principal axes glowing (eigenvectors).</p>
+</li>
+<li>
+<p>Real-time matrix input showing how eigenvectors stretch/shrink.</p>
+</li>
+<li>
+<p>Animation of transformation along eigenvector directions only.</p>
+</li>
+<li>
+<p>PCA example on 3D point cloud (covariance eigenvectors).</p>
+</li>
+</ol>
+<p>Main Playground: Drag matrix sliders and see eigenvectors automatically align and scale.</p>
+<hr /></div>
+        </div>
+        
+        <div class="page-card" id="Key_Concepts_in_Geography">
+            <h2>Key Concepts in Geography</h2>
+            <div class="content"><p>Location
+Absolute location: Exact coordinates (latitude/longitude)
+Relative location: Position compared to other places
+Place
+The physical and human characteristics that make a location unique.
+Region
+Areas grouped by common features:
+Physical (rainforest, desert)
+Cultural (language, religion)
+Economic (industrial zones)
+Movement
+How people, goods, and ideas travel across Earth.
+Human-Environment Interaction
+How humans adapt to, modify, and depend on nature.</p></div>
+        </div>
+        
+        <div class="page-card" id="test-page">
+            <h2>test-page</h2>
+            <div class="content"></div>
+        </div>
+        
+        <div class="page-card" id="Core_Branches_of_Physics">
+            <h2>Core Branches of Physics</h2>
+            <div class="content"><ol>
+<li>Classical Mechanics This studies motion and forces. Key Ideas: Velocity Acceleration Force Mass Momentum Energy Newton’s Laws: F=ma This means force equals mass times acceleration. Real-Life Examples: Cars moving Falling objects Rockets launching Sports 2. Thermodynamics Studies heat, temperature, and energy transfer. Main Concepts: Heat flows from hot to cold Energy cannot be created or destroyed Entropy measures disorder Example: Engines Refrigerators Human metabolism 3. Electromagnetism Studies electricity, magnetism, and light. Topics: Electric charge Current Voltage Magnetic fields Electromagnetic waves Why Important: This is behind: Phones Wi-Fi Motors Computers 4. Optics Study of light. Includes: Reflection Refraction Lenses Lasers Applications: Glasses Cameras Fiber optics 5. Quantum Mechanics Physics of very tiny particles (atoms, electrons). Strange Principles: Particles behave like waves Uncertainty principle Probability-based outcomes Important For: Semiconductors Quantum computing Chemistry 6. Relativity Developed by Albert Einstein. Special Relativity: Space and time are connected. Famous Equation: E=mc^2 This shows mass can become energy. General Relativity: Gravity is curvature of spacetime. Explains: Black holes GPS corrections Planetary orbits</li>
+</ol></div>
+        </div>
+        
+        <div class="page-card" id="Modern_Physics_Frontiers">
+            <h2>Modern Physics Frontiers</h2>
+            <div class="content"><p>Today physicists explore: Dark matter Dark energy Quantum gravity String theory Fusion energy AI in physics</p></div>
+        </div>
+        
+        <div class="page-card" id="The_deepest_ocean_trench_is_the_Mariana_Trench.">
+            <h2>The deepest ocean trench is the Mariana Trench.</h2>
+            <div class="content"></div>
+        </div>
+        
+        <div class="page-card" id="Sub_Total">
+            <h2>Sub Total</h2>
+            <div class="content"><p>30,400 ETB.</p></div>
+        </div>
+        
+        <div class="page-card" id="analysis-explain-this-page-1777206310">
+            <h2>analysis-explain-this-page-1777206310</h2>
+            <div class="content"><h1>Analysis 2026-04-26 12:25</h1>
+<p>Context-aware answer</p></div>
+        </div>
+        
+        <div class="page-card" id="GIS_(Geographic_Information_Systems)">
+            <h2>GIS (Geographic Information Systems)</h2>
+            <div class="content"></div>
+        </div>
+        
+        <div class="page-card" id="20th_Century">
+            <h2>20th Century</h2>
+            <div class="content"><p>The 20th century was one of unprecedented advancement and destruction. Two World Wars redrew borders, caused immense human loss, and introduced technologies of mass warfare.</p></div>
+        </div>
+        
+        <div class="page-card" id="Scientific_Revolution">
+            <h2>Scientific Revolution</h2>
+            <div class="content"><p>The Scientific Revolution challenged traditional authority through reason and experimentation.</p></div>
+        </div>
+        
+        <div class="page-card" id="analysis-create-durable-artifact-1777206309">
+            <h2>analysis-create-durable-artifact-1777206309</h2>
+            <div class="content"><h1>Analysis 2026-04-26 12:25</h1>
+<p>Durable answer</p></div>
+        </div>
+        
+        <div class="page-card" id="About_71%_of_Earth’s_surface_is_covered_by_water.">
+            <h2>About 71% of Earth’s surface is covered by water.</h2>
+            <div class="content"></div>
+        </div>
+        
+        <div class="page-card" id="AI_Math_Playground">
+            <h2>AI Math Playground</h2>
+            <div class="content"></div>
+        </div>
+        
+        <div class="page-card" id="analysis-what-is-this-1777206430">
+            <h2>analysis-what-is-this-1777206430</h2>
+            <div class="content"><h1>Analysis 2026-04-26 12:27</h1>
+<p>Mocked response</p></div>
+        </div>
+        
+        <div class="page-card" id="analysis-hi-1777273919">
+            <h2>analysis-hi-1777273919</h2>
+            <div class="content"><h1>Analysis 2026-04-27 07:11</h1>
+<p>The question is "hi". </p>
+<p>There is no relevant information in the provided wiki pages to answer this question. The wiki pages contain information about various concepts such as Main Courses, numpy, django, analysis, Core Concept, Performa Invoice, and djangorestframework, but they do not address a greeting like "hi". </p>
+<p>So, the response is "The wiki doesn't have information about this yet."</p></div>
+        </div>
+        
+        <div class="page-card" id="analysis-what-is-this-1777206476">
+            <h2>analysis-what-is-this-1777206476</h2>
+            <div class="content"><h1>Analysis 2026-04-26 12:27</h1>
+<p>Mocked response</p></div>
+        </div>
+        
+        <div class="page-card" id="graph-seed">
+            <h2>graph-seed</h2>
+            <div class="content"><p>[[Other]] linked</p>
+<p>[[Other]]</p></div>
+        </div>
+        
+        <div class="page-card" id="In_Simple_Terms">
+            <h2>In Simple Terms</h2>
+            <div class="content"><p>Geography is about understanding the world’s physical features, human societies, and the relationships between them—from local neighborhoods to global systems. It connects science, history, politics, and culture to explain how our planet works.</p></div>
+        </div>
+        
+        <div class="page-card" id="analysis-create-durable-artifact-1777206011">
+            <h2>analysis-create-durable-artifact-1777206011</h2>
+            <div class="content"><h1>Analysis 2026-04-26 12:20</h1>
+<p>Durable answer</p></div>
+        </div>
+        
+        </div>
+    </body>
+    </html>
+    

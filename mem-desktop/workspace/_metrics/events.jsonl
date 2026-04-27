@@ -140,3 +140,8 @@
 {"event": "chat_query_completed", "timestamp": 1777304049.6812308, "payload": {"with_page_context": false, "question_len": 25, "surface": "synthesis"}}
 {"event": "chat_answer_received", "timestamp": 1777304049.9213996, "payload": {"surface": "synthesis", "mode": "global", "confidence": "medium", "citations_count": 3}}
 {"event": "frontend_chat_completed", "timestamp": 1777304050.1809785, "payload": {"surface": "synthesis", "with_page_context": false, "has_error": false}}
+{"event": "ingest_text_completed", "timestamp": 1777305251.553349, "payload": {"title": "autoreplay", "auto_approve": false, "has_error": true, "status": null}}
+{"event": "ingest_text_completed", "timestamp": 1777305696.8150277, "payload": {"title": "History", "auto_approve": false, "has_error": false, "status": "staged"}}
+{"event": "approve_changes_completed", "timestamp": 1777305967.8265762, "payload": {"has_error": false, "status": "applied"}}
+{"event": "ingest_text_completed", "timestamp": 1777306010.5387914, "payload": {"title": "History", "auto_approve": false, "has_error": false, "status": "staged"}}
+{"event": "approve_changes_completed", "timestamp": 1777306034.9032753, "payload": {"has_error": false, "status": "applied"}}
