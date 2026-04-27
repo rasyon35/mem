@@ -275,6 +275,7 @@ def wiki_markdown_files(request):
     query = str(request.query_params.get("q", "")).strip().lower()
 
     pages = []
+    seen_ids = set()
     for md_file in markdown_page_paths():
         file_name = md_file.name
         file_stem = md_file.stem
@@ -299,6 +300,10 @@ def wiki_markdown_files(request):
                 page_type="markdown",
                 status="active",
             )
+
+        if page.id in seen_ids:
+            continue
+        seen_ids.add(page.id)
 
         pages.append(
             {

@@ -12,11 +12,10 @@ import remarkGfm from 'remark-gfm';
 
 const API = 'http://localhost:8000/api';
 
-/* ─── Branch Colors (NotebookLM-style) ──────────────────────── */
+/* ─── Branch Colors (Muted) ──────────────────────── */
 const BRANCH_COLORS = [
-  '#6366f1', '#ec4899', '#10b981', '#f59e0b',
-  '#3b82f6', '#ef4444', '#8b5cf6', '#06b6d4',
-  '#f97316', '#14b8a6', '#84cc16', '#a855f7',
+  '#6b7280', '#71717a', '#737373', '#78716c',
+  '#52525b', '#525252', '#57534e', '#4b5563',
 ];
 
 type MindNode = {
@@ -225,8 +224,8 @@ export default function GraphViewer({ onNodeClick }: { onNodeClick?: (title: str
     ctx.scale(dpr, dpr);
 
     const cs = getComputedStyle(document.documentElement);
-    const bgColor = cs.getPropertyValue('--bg-900').trim();
-    ctx.fillStyle = bgColor || '#0d0f14';
+    const bgColor = cs.getPropertyValue('--surface-1').trim() || '#1b1b1f';
+    ctx.fillStyle = bgColor;
     ctx.fillRect(0, 0, dimensions.width, dimensions.height);
 
     const ox = scrollOffset.x + dimensions.width / 2;
@@ -559,35 +558,36 @@ export default function GraphViewer({ onNodeClick }: { onNodeClick?: (title: str
       style={{ minHeight: 600, background: `radial-gradient(ellipse at 40% 50%, var(--bg-800) 0%, var(--bg-900) 100%)` }}
     >
       {/* ── Mind Map Canvas ───────────────────────────────────────── */}
-      <div className="relative" style={{ width: canvasWidth, flexShrink: 0 }}>
+      <div
+        className="relative"
+        style={{ width: canvasWidth, flexShrink: 0 }}
+      >
         {/* Floating toolbar */}
-        <div className="absolute top-5 left-5 right-5 z-10 flex justify-between items-start gap-4 pointer-events-none">
-          <div className="pointer-events-auto backdrop-blur-2xl rounded-2xl px-5 py-4 shadow-2xl" style={{ background: 'var(--glass-bg)', border: '1px solid var(--glass-border)' }}>
-            <p className="text-base font-black tracking-tight" style={{ color: 'var(--text-primary)' }}>Knowledge Map</p>
-            <div className="flex items-center gap-2 mt-1">
+        <div className="absolute top-4 left-4 right-4 z-10 flex justify-between items-start gap-4 pointer-events-none">
+          <div className="pointer-events-auto bg-surface-2 rounded-md px-4 py-3 border border-border-subtle shadow-sm flex flex-col gap-1">
+            <p className="text-sm font-semibold text-text-primary">Knowledge Map</p>
+            <div className="flex items-center gap-2">
               <span className="relative flex h-1.5 w-1.5">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full opacity-75" style={{ background: 'var(--accent)' }} />
-                <span className="relative inline-flex rounded-full h-1.5 w-1.5" style={{ background: 'var(--accent)' }} />
+                <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-text-muted" />
               </span>
-              <p className="text-[11px] uppercase tracking-widest font-bold" style={{ color: 'var(--text-muted)' }}>{mindMap.categories.length} topics · {graphData.nodes.length} nodes</p>
+              <p className="text-[10px] uppercase tracking-widest font-medium text-text-muted">{mindMap.categories.length} topics · {graphData.nodes.length} nodes</p>
             </div>
           </div>
-          <div className="pointer-events-auto flex items-center gap-3 backdrop-blur-2xl rounded-2xl px-4 py-3 shadow-2xl" style={{ background: 'var(--glass-bg)', border: '1px solid var(--glass-border)' }}>
+          <div className="pointer-events-auto flex items-center gap-2 bg-surface-2 rounded-md px-3 py-2 border border-border-subtle shadow-sm">
             <input
               type="text"
               value={searchTerm}
               onChange={e => setSearchTerm(e.target.value)}
-              className="bg-transparent text-xs outline-none w-40 font-medium text-input"
-              style={{ color: 'var(--text-primary)', border: 'none', padding: 0 }}
+              className="bg-transparent text-xs outline-none w-40 text-text-primary placeholder:text-text-muted"
               placeholder="Search topics…"
             />
-            <button onClick={() => fetchGraphData()} className="btn-primary text-[10px] py-1.5 px-3 rounded-lg font-black tracking-widest uppercase">Refresh</button>
+            <button onClick={() => fetchGraphData()} className="text-[10px] py-1 px-2 rounded font-medium bg-surface-3 text-text-secondary hover:text-text-primary transition-colors border border-border-subtle">Refresh</button>
           </div>
         </div>
 
         {/* Branch Legend */}
-        <div className="absolute bottom-5 left-5 z-10 pointer-events-auto backdrop-blur-2xl rounded-2xl px-4 py-3 shadow-2xl" style={{ background: 'var(--glass-bg)', border: '1px solid var(--glass-border)', maxWidth: 260 }}>
-          <p className="text-[9px] font-black uppercase tracking-[0.2em] mb-2" style={{ color: 'var(--text-muted)' }}>Topics</p>
+        <div className="absolute bottom-4 left-4 z-10 pointer-events-auto bg-surface-2 rounded-md px-3 py-2 border border-border-subtle shadow-sm max-w-[200px]">
+          <p className="text-[10px] font-semibold uppercase tracking-widest mb-2 text-text-muted">Topics</p>
           <div className="flex flex-col gap-1.5">
             {mindMap.categories.map((cat, idx) => {
               const color = BRANCH_COLORS[idx % BRANCH_COLORS.length];
@@ -637,97 +637,76 @@ export default function GraphViewer({ onNodeClick }: { onNodeClick?: (title: str
       {/* ─────────────────────────────────────────────────────────── */}
       {detailNode && (
         <div
-          className="flex-shrink-0 flex flex-col border-l z-20"
-          style={{ width: panelWidth, height: dimensions.height, background: 'var(--bg-900)', borderColor: 'var(--border)', boxShadow: '-32px 0 80px rgba(0,0,0,0.15)' }}
+          className="flex-shrink-0 flex flex-col border-l z-20 bg-surface-1 border-border-subtle"
+          style={{ width: panelWidth, height: dimensions.height }}
         >
           {/* Global Presence Bar */}
-          <div className="flex-shrink-0 border-b px-6 py-2 flex items-center justify-between" style={{ borderColor: 'var(--border)', background: 'var(--bg-700)' }}>
+          <div className="flex-shrink-0 border-b px-4 py-2 flex items-center justify-between bg-surface-2 border-border-subtle">
             <div className="flex items-center gap-3">
               <div className="flex -space-x-1.5">
                 {Object.entries(presence).map(([hub, data]: [string, any]) => (
                   <div 
                     key={hub} 
-                    className="w-6 h-6 rounded-full border flex items-center justify-center text-[9px] font-black cursor-help group relative"
-                    style={{ background: 'var(--accent-glow)', borderColor: 'var(--bg-900)', color: 'var(--accent)' }}
+                    className="w-5 h-5 rounded-full border flex items-center justify-center text-[9px] font-semibold cursor-help group relative bg-surface-3 border-border-subtle text-text-primary"
                   >
                     {data.user.slice(0, 2).toUpperCase()}
-                    <div className="absolute top-full left-1/2 -translate-x-1/2 mt-2 px-2 py-1 rounded-lg text-[10px] font-bold opacity-0 group-hover:opacity-100 transition-all scale-95 group-hover:scale-100 whitespace-nowrap z-50 pointer-events-none shadow-2xl" style={{ background: 'var(--bg-800)', color: 'var(--text-primary)', border: '1px solid var(--border)' }}>
+                    <div className="absolute top-full left-1/2 -translate-x-1/2 mt-1 px-2 py-1 rounded bg-surface-3 text-text-primary border border-border-subtle text-[10px] opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-50 pointer-events-none shadow-sm">
                       {data.user} is viewing <span className="text-accent">{hub}</span>
                     </div>
                   </div>
                 ))}
               </div>
-              <span className="text-[9px] font-black uppercase tracking-[0.15em]" style={{ color: 'var(--text-dim)' }}>
+              <span className="text-[10px] font-semibold uppercase tracking-widest text-text-muted">
                 {Object.keys(presence).length > 0 ? 'Live Explorers' : 'Synced'}
               </span>
             </div>
             <div className="flex items-center gap-2">
-              <div className={`w-1.5 h-1.5 rounded-full ${Object.keys(presence).length > 0 ? 'bg-green-500 animate-pulse' : 'bg-white/10'}`} />
-              <span className="text-[9px] font-black uppercase tracking-[0.2em]" style={{ color: 'var(--text-dim)' }}>Hub Status: Online</span>
+              <div className={`w-1.5 h-1.5 rounded-full ${Object.keys(presence).length > 0 ? 'bg-success' : 'bg-text-muted opacity-50'}`} />
+              <span className="text-[10px] font-semibold uppercase tracking-widest text-text-muted">Hub Status: Online</span>
             </div>
           </div>
           {/* ══════════════════════════════════════════════════════ */}
           {/* ZONE A — HEADER (pinned, ~30% height)                  */}
           {/* ══════════════════════════════════════════════════════ */}
-          <div
-            className="flex-shrink-0 relative overflow-hidden"
-            style={{ background: `linear-gradient(160deg, var(--accent-glow) 0%, transparent 100%)` }}
-          >
-            {/* Ambient glow */}
-            <div className="absolute -top-20 -left-10 w-72 h-72 rounded-full blur-3xl pointer-events-none" style={{ background: 'var(--accent-glow)' }} />
-
+          <div className="flex-shrink-0 relative overflow-hidden bg-surface-1">
             {/* Header content */}
-            <div className="relative z-10" style={{ padding: '40px 36px 32px' }}>
+            <div className="relative z-10 p-6">
               {/* Close + type badge row */}
-              <div className="flex items-center justify-between" style={{ marginBottom: '20px' }}>
-                <span
-                  className="font-black uppercase tracking-[0.35em] rounded-full border"
-                  style={{
-                    padding: '6px 16px',
-                    fontSize: '10px',
-                    borderColor: 'var(--border)',
-                    background: detailNode.type === 'ghost' ? 'var(--bg-600)' : isHubNode(detailNode) ? 'rgba(239,68,68,0.12)' : 'rgba(16,185,129,0.12)',
-                    color: detailNode.type === 'ghost' ? '#94a3b8' : isHubNode(detailNode) ? '#f87171' : '#34d399'
-                  }}
-                >
+              <div className="flex items-center justify-between mb-4">
+                <span className="font-semibold uppercase tracking-widest rounded-sm border px-2 py-1 text-[10px] bg-surface-2 border-border-subtle text-text-secondary">
                   {detailNode.type === 'ghost' ? 'Uncharted Topic' : isHubNode(detailNode) ? 'Knowledge Hub' : (detailNode.type || 'Concept')}
                 </span>
 
                 <button
                   onClick={closeDetail}
-                  className="flex items-center justify-center rounded-full hover:bg-[var(--bg-600)] border transition-all"
-                  style={{ width: '40px', height: '40px', background: 'var(--bg-600)', borderColor: 'var(--border)', color: 'var(--text-muted)' }}
+                  className="flex items-center justify-center rounded-sm hover:bg-surface-3 transition-colors text-text-muted hover:text-text-primary p-1"
                 >
-                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                     <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
                   </svg>
                 </button>
               </div>
 
               {/* Title */}
-              <h2
-                className="font-black leading-tight"
-                style={{ fontSize: '28px', letterSpacing: '-0.02em', marginBottom: '28px', color: 'var(--text-primary)' }}
-              >
+              <h2 className="font-semibold leading-tight text-xl mb-6 text-text-primary">
                 {(detailNode.name || detailNode.id).replace(/_/g, ' ')}
               </h2>
 
               {/* Stat pills — horizontal row, each pill has count stacked above label */}
-              <div className="flex items-stretch" style={{ gap: '12px' }}>
+              <div className="flex items-stretch gap-2">
                 {[
-                  { dot: '#818cf8', count: detailNode.degree || 0, label: 'Links' },
-                  { dot: '#60a5fa', count: sources.length, label: 'Sources' },
-                  ...(related.length > 0 ? [{ dot: '#34d399', count: related.length, label: 'Related' }] : []),
+                  { dot: '#8b5cf6', count: detailNode.degree || 0, label: 'Links' },
+                  { dot: '#3b82f6', count: sources.length, label: 'Sources' },
+                  ...(related.length > 0 ? [{ dot: '#10b981', count: related.length, label: 'Related' }] : []),
                 ].map(({ dot, count, label }) => (
                   <div
                     key={label}
-                    className="flex-1 flex flex-col items-center justify-center border rounded-2xl py-3"
-                    style={{ background: 'var(--bg-600)', borderColor: 'var(--border)' }}
+                    className="flex-1 flex flex-col items-center justify-center border rounded-md py-2 bg-surface-2 border-border-subtle"
                   >
-                    <span className="text-xl font-black mb-0.5" style={{ color: 'var(--text-primary)' }}>{count}</span>
-                    <div className="flex items-center gap-1.5 opacity-60">
-                      <div className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: dot }} />
-                      <span className="text-[9px] uppercase font-bold tracking-wider">{label}</span>
+                    <span className="text-sm font-semibold mb-0.5 text-text-primary">{count}</span>
+                    <div className="flex items-center gap-1.5 opacity-80">
+                      <div className="w-1.5 h-1.5 rounded-full bg-text-muted" />
+                      <span className="text-[9px] uppercase font-semibold tracking-widest text-text-muted">{label}</span>
                     </div>
                   </div>
                 ))}
@@ -735,16 +714,16 @@ export default function GraphViewer({ onNodeClick }: { onNodeClick?: (title: str
 
               {/* Ghost Node Action */}
               {detailNode.type === 'ghost' && (
-                <div className="mt-8">
+                <div className="mt-6">
                   <button 
                     onClick={() => {
                        // Logic to instantiate page
                        alert('LLM will now generate a baseline for this topic...');
                     }}
-                    className="w-full flex items-center justify-center gap-3 bg-accent hover:bg-accent-light text-white py-4 rounded-2xl font-black text-sm transition-all shadow-xl shadow-accent/20 group"
+                    className="w-full flex items-center justify-center gap-2 bg-surface-3 hover:bg-surface-2 border border-border-strong text-text-primary py-2 rounded-md font-semibold text-sm transition-colors group"
                   >
                     <span>Instantiate Knowledge</span>
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" className="group-hover:translate-x-1 transition-transform">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="group-hover:translate-x-0.5 transition-transform">
                       <path d="M5 12h14M12 5l7 7-7 7" />
                     </svg>
                   </button>
@@ -753,37 +732,21 @@ export default function GraphViewer({ onNodeClick }: { onNodeClick?: (title: str
             </div>
           </div>
 
-          <div style={{ padding: '0 32px 32px' }}>
-
-              <div className="flex gap-2 rounded-2xl border" style={{ padding: '8px', background: 'var(--bg-600)', borderColor: 'var(--border)' }}>
+          <div className="px-6 pb-6">
+              <div className="flex gap-1 rounded-md border p-1 bg-surface-2 border-border-subtle">
                 {(['overview', 'chat'] as const).map(tab => (
                   <button
                     key={tab}
                     onClick={() => setActiveTab(tab)}
-                    className="flex-1 rounded-xl font-black uppercase transition-all duration-300 flex items-center justify-center gap-2"
-                    style={{
-                      padding: '16px 12px',
-                      fontSize: '11px',
-                      letterSpacing: '0.2em',
-                      ...(activeTab === tab ? {
-                        background: tab === 'overview'
-                          ? 'linear-gradient(135deg,rgba(16,185,129,0.3),rgba(16,185,129,0.15))'
-                          : 'linear-gradient(135deg,rgba(108,99,255,0.4),rgba(108,99,255,0.2))',
-                        color: tab === 'overview' ? '#6ee7b7' : '#c4b5fd',
-                        boxShadow: tab === 'overview'
-                          ? '0 8px 24px rgba(16,185,129,0.2)'
-                          : '0 8px 24px rgba(108,99,255,0.25)',
-                        border: `1px solid ${tab === 'overview' ? 'rgba(16,185,129,0.3)' : 'rgba(108,99,255,0.35)'}`,
-                      } : { color: 'var(--text-muted)', border: '1px solid transparent' })
-                    }}
+                    className={`flex-1 rounded-sm font-semibold uppercase transition-colors flex items-center justify-center gap-2 py-2 text-[10px] tracking-widest ${activeTab === tab ? 'bg-surface-3 text-text-primary border border-border-strong shadow-sm' : 'text-text-muted border border-transparent hover:text-text-secondary'}`}
                   >
                     {tab === 'chat' && (
-                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                         <path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z" />
                       </svg>
                     )}
                     {tab === 'overview' && (
-                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                         <circle cx="12" cy="12" r="10" /><line x1="12" y1="8" x2="12" y2="12" /><line x1="12" y1="16" x2="12.01" y2="16" />
                       </svg>
                     )}

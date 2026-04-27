@@ -3,14 +3,12 @@
 import React, { useState, useMemo } from 'react';
 import Link from 'next/link';
 import { usePathname, useSearchParams } from 'next/navigation';
-import { motion } from 'framer-motion';
 import { useWiki } from '@/context/WikiContext';
 import { useTheme } from '@/context/ThemeContext';
 import { 
   IngestIcon, ChatIcon,  WikiIcon, GraphIcon,
-  TimelineIcon, CollabIcon, SettingsIcon, ConflictIcon, SynthesisIcon, ResearchIcon
+  TimelineIcon, CollabIcon, SettingsIcon
 } from './Icons';
-
 
 interface SidebarProps {
   isCollapsed: boolean;
@@ -20,7 +18,7 @@ interface SidebarProps {
 export default function Sidebar({ isCollapsed, onToggle }: SidebarProps) {
   const pathname = usePathname();
   const searchParams = useSearchParams();
-  const { wikiPages, contradictions, pullRequests, openPage, locks, presence, team } = useWiki();
+  const { wikiPages, locks, presence, team, wikiSidebarOpen, setWikiSidebarOpen } = useWiki();
   const { theme, toggleTheme } = useTheme();
   const [openCategories, setOpenCategories] = useState<Record<string, boolean>>({});
   const [openSections, setOpenSections] = useState<Record<string, boolean>>({ Core: true, Wiki: true, Management: true });
@@ -38,62 +36,47 @@ export default function Sidebar({ isCollapsed, onToggle }: SidebarProps) {
   const toggleCategory = (cat: string) => setOpenCategories(prev => ({ ...prev, [cat]: !prev[cat] }));
   const toggleSection = (sec: string) => setOpenSections(prev => ({ ...prev, [sec]: !prev[sec] }));
 
-  const navSections = [
+  type NavItem = {
+    title: string;
+    path: string;
+    icon: React.ReactNode;
+    onClick?: () => void;
+  };
+
+  const navSections: { key: string; items: NavItem[] }[] = [
     { key: 'Core', items: [
       { title: 'Ingest', path: '/dashboard/ingest', icon: <IngestIcon /> },
       { title: 'Chat', path: '/dashboard/chat', icon: <ChatIcon /> },
     ]},
     { key: 'Wiki', items: [
       { title: 'New Markdown', path: '/dashboard/markdown?action=new', icon: <WikiIcon /> },
-      { title: 'Open Markdown', path: '/dashboard/markdown?action=open', icon: <WikiIcon /> },
     ]},
     { key: 'Management', items: [
       { title: 'Settings', path: '/dashboard/settings', icon: <SettingsIcon /> },
       { title: 'Collab', path: '/dashboard/collab', icon: <CollabIcon /> },
       { title: 'Timeline', path: '/dashboard/timeline', icon: <TimelineIcon /> },
+      { title: 'Graph', path: '/dashboard/graph', icon: <GraphIcon /> },
     ]},
   ];
 
-  const userRole = (() => {
-    const email = 'local@user';
-    if (!team) return 'admin';
-    if ((team.admins || []).includes(email)) return 'admin';
-    if ((team.editors || []).includes(email)) return 'editor';
-    if ((team.contributors || []).includes(email)) return 'contributor';
-    if ((team.viewers || []).includes(email)) return 'viewer';
-    return 'admin';
-  })();
-
-
   return (
-    <aside className={`sidebar bg-gradient-to-b from-surface-2 to-surface-3 shadow-xl ${isCollapsed ? 'collapsed' : ''}`}>
-      {/* Logo Row + Collapse Toggle */}
-      <div className="sidebar-header border-b border-border-subtle bg-gradient-to-r from-accent/10 to-transparent px-4 py-5">
-        <div className="logo overflow-hidden">
-          <div className="logo-mark mr-3 flex-shrink-0 w-10 h-10 rounded-xl bg-gradient-to-br from-accent to-accent-dark text-white flex items-center justify-center font-black text-lg shadow-lg shadow-accent/30">M</div>
-          {!isCollapsed && (
-            <motion.div 
-              initial={{ opacity: 0, x: -10 }}
-              animate={{ opacity: 1, x: 0 }}
-              className="flex flex-col"
-            >
-              <span className="logo-text font-outfit text-2xl tracking-tighter leading-none text-text-primary">MemOS</span>
-              <span className="text-[9px] font-black uppercase tracking-[0.3em] mt-1 whitespace-nowrap bg-gradient-to-r from-accent to-accent-light bg-clip-text text-transparent">Knowledge Engine</span>
-            </motion.div>
-          )}
+    <aside className={`sidebar ${isCollapsed ? 'collapsed' : ''}`}>
+      <div className="sidebar-header">
+        <div className="logo">
+          <div className="sidebar-avatar" style={{ border: 'none', background: 'var(--text-primary)', color: 'var(--bg-900)' }}>M</div>
+          {!isCollapsed && <span className="logo-text">Mem Desktop</span>}
         </div>
         <button 
           onClick={onToggle}
-          className="collapse-toggle p-1.5 hover:bg-white/10 rounded-lg transition-colors text-text-secondary hover:text-text-primary"
+          className="collapse-toggle"
           title={isCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
         >
           <svg className={`w-4 h-4 transition-transform duration-200 ${isCollapsed ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M15 19l-7-7 7-7" />
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
           </svg>
         </button>
       </div>
 
-      {/* Nav Sections */}
       <nav className="nav px-3 flex-1 overflow-y-auto custom-scrollbar space-y-1">
         {navSections.map(section => {
           const isSectionOpen = openSections[section.key] !== false;
@@ -102,12 +85,9 @@ export default function Sidebar({ isCollapsed, onToggle }: SidebarProps) {
               {!isCollapsed && (
                 <button
                   onClick={() => toggleSection(section.key)}
-                  className="nav-section-header w-full px-4 py-3 flex items-center justify-between text-xs font-black uppercase tracking-wider text-text-secondary/70 hover:text-accent transition-colors rounded-lg hover:bg-accent/10"
+                  className="nav-section-header"
                 >
                   <span>{section.key}</span>
-                  <svg className={`w-3 h-3 transition-transform duration-200 ${isSectionOpen ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M19 9l-7 7-7-7" />
-                  </svg>
                 </button>
               )}
               {(isSectionOpen || isCollapsed) && section.items.map(item => {
@@ -122,32 +102,35 @@ export default function Sidebar({ isCollapsed, onToggle }: SidebarProps) {
                   return true;
                 })();
                 const isActive = isPathActive && isQueryActive;
+
+                const Content = (
+                  <>
+                    {item.icon}
+                    {!isCollapsed && <span>{item.title}</span>}
+                  </>
+                );
+
+                if ('onClick' in item && item.onClick) {
+                  return (
+                    <button
+                      key={item.path}
+                      onClick={item.onClick}
+                      className={`nav-btn ${isActive ? 'active' : ''} ${isCollapsed ? 'justify-center' : ''}`}
+                      title={isCollapsed ? item.title : ''}
+                    >
+                      {Content}
+                    </button>
+                  );
+                }
+
                 return (
                   <Link
                     key={item.path}
                     href={item.path}
-                    className={`nav-btn relative ${isActive ? 'active' : ''} ${isCollapsed ? 'justify-center' : ''}`}
+                    className={`nav-btn ${isActive ? 'active' : ''} ${isCollapsed ? 'justify-center' : ''}`}
                     title={isCollapsed ? item.title : ''}
                   >
-                    {isActive && (
-                      <motion.div
-                        layoutId="active-nav"
-                        className="absolute inset-0 rounded-[var(--radius-md)] z-0"
-                        style={{ background: 'var(--accent-glow)', border: '1px solid hsla(var(--accent-h), 85%, 55%, 0.25)' }}
-                        transition={{ type: 'spring', stiffness: 380, damping: 30 }}
-                      />
-                    )}
-                    <div className="relative z-10 flex items-center gap-3">
-                      <div className="relative flex items-center justify-center">
-                        {item.icon}
-                        {item.badge ? (
-                          <span className="absolute -top-1.5 -right-1.5 min-w-[14px] h-[14px] flex items-center justify-center bg-danger text-[9px] font-black text-white rounded-full" style={{ boxShadow: '0 0 0 2px var(--bg-900)' }}>
-                            {item.badge}
-                          </span>
-                        ) : null}
-                      </div>
-                      {!isCollapsed && <span>{item.title}</span>}
-                    </div>
+                    {Content}
                   </Link>
                 );
               })}
@@ -155,39 +138,28 @@ export default function Sidebar({ isCollapsed, onToggle }: SidebarProps) {
           );
         })}
 
-        {/* Wiki Pages */}
         {!isCollapsed && wikiPages.length > 0 && (
           <div className="sidebar-pages overflow-y-auto custom-scrollbar">
             {Object.entries(groupedPages).map(([category, pages]) => {
               if (pages.length === 0) return null;
               const isOpen = openCategories[category];
               return (
-                <div key={category} className="mb-3">
+                <div key={category} className="mb-2">
                   <button 
                     onClick={() => toggleCategory(category)}
                     className="nav-section-header"
                   >
-                    <span>{category} ({pages.length})</span>
-                    <svg className={`w-3 h-3 transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M19 9l-7 7-7-7" />
-                    </svg>
+                    <span>{category}</span>
                   </button>
                   {isOpen && (
-                    <div className="flex flex-col gap-1 border-l ml-2 pl-3" style={{ borderColor: 'var(--border)' }}>
+                    <div className="flex flex-col gap-1 pl-4">
                       {pages.map(p => (
                         <Link
                           key={p.title}
                           href={`/dashboard/markdown?page=${encodeURIComponent(p.slug || p.title)}`}
-                          className="text-[11px] font-bold py-1 transition-colors flex items-center gap-2"
-                          style={{ color: 'var(--text-muted)' }}
-                          onMouseEnter={e => e.currentTarget.style.color = 'var(--text-primary)'}
-                          onMouseLeave={e => e.currentTarget.style.color = 'var(--text-muted)'}
-                          onClick={() => openPage(p.title)}
+                          className="nav-btn"
+                          style={{ padding: '0.25rem 1rem', fontSize: '0.8rem' }}
                         >
-                          <span className={`w-1 h-1 rounded-full flex-shrink-0 ${
-                            locks.find((l: any) => l.page === p.title) ? 'bg-danger' : 
-                            presence[p.title] ? 'bg-success animate-pulse' : ''
-                          }`} style={!locks.find((l: any) => l.page === p.title) && !presence[p.title] ? { background: 'var(--bg-500)' } : {}} />
                           <span className="truncate">{p.title.replace(/_/g, ' ')}</span>
                         </Link>
                       ))}
@@ -200,16 +172,10 @@ export default function Sidebar({ isCollapsed, onToggle }: SidebarProps) {
         )}
       </nav>
 
-      {/* Footer: User Management + Theme Toggle */}
       <div className="sidebar-footer">
         <div className="sidebar-user">
           <div className="sidebar-avatar">U</div>
-          {!isCollapsed && (
-            <div className="sidebar-user-info">
-              <span className="sidebar-user-name">Local User</span>
-              <span className="sidebar-user-role">{userRole}</span>
-            </div>
-          )}
+          {!isCollapsed && <span className="sidebar-user-name">Local User</span>}
         </div>
         <button
           onClick={() => toggleTheme()}
@@ -225,7 +191,6 @@ export default function Sidebar({ isCollapsed, onToggle }: SidebarProps) {
               <path strokeLinecap="round" strokeLinejoin="round" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
             </svg>
           )}
-          {!isCollapsed && <span>{theme === 'dark' ? 'Light Mode' : 'Dark Mode'}</span>}
         </button>
       </div>
     </aside>

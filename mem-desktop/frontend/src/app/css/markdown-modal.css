@@ -1,525 +1,212 @@
 /* ────────────────────────────────────────────────────────────────────────────
-   MARKDOWN MODAL STYLES - Popup Viewer & Editor for Markdown Content
+   MARKDOWN MODAL & EDITOR STYLES (FLAT DESIGN VERSION)
    ──────────────────────────────────────────────────────────────────────────── */
 
-/* Modal Container */
-.markdown-modal-overlay {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: rgba(0, 0, 0, 0.6);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 1100;
-  padding: var(--space-4);
-  animation: fadeIn 0.2s ease-out;
-}
-
-@keyframes fadeIn {
-  from {
-    opacity: 0;
-  }
-  to {
-    opacity: 1;
-  }
-}
-
-.markdown-modal {
-  background: var(--surface-2);
-  border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-xl);
-  width: 100%;
-  max-width: 900px;
-  max-height: 90vh;
-  display: flex;
-  flex-direction: column;
-  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.4), 0 0 1px var(--border-subtle);
-  animation: modalSlideUp 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
-  overflow: hidden;
-}
-
+/* Modal Animations */
 @keyframes modalSlideUp {
   from {
     opacity: 0;
-    transform: translateY(30px) scale(0.95);
+    transform: translateY(10px);
   }
   to {
     opacity: 1;
-    transform: translateY(0) scale(1);
+    transform: translateY(0);
   }
 }
 
-/* Modal Header */
-.markdown-modal-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: var(--space-6) var(--space-7);
-  border-bottom: 1px solid var(--border-subtle);
-  background: linear-gradient(135deg, var(--surface-2) 0%, color-mix(in hsl, var(--surface-2) 95%, var(--accent) 5%) 100%);
-  flex-shrink: 0;
+@keyframes backdropFade {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
 }
 
-.markdown-modal-title {
-  display: flex;
-  align-items: center;
-  gap: var(--space-3);
-  margin: 0;
-  font-size: 1.2rem;
-  font-weight: 700;
-  letter-spacing: -0.02em;
-  color: var(--text-primary);
-  max-width: 70%;
+.animate-modal-slide-up {
+  animation: modalSlideUp 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.animate-backdrop-fade {
+  animation: backdropFade 0.25s ease-out;
+}
+
+/* ────────────────────────────────────────────────────────────────────────────
+   PAGE LIST ANIMATIONS
+   ──────────────────────────────────────────────────────────────────────────── */
+
+.page-list-item {
+  animation: fadeInUp 0.2s ease-out;
+}
+
+.page-list-item:nth-child(2) {
+  animation-delay: 0.05s;
+}
+
+.page-list-item:nth-child(3) {
+  animation-delay: 0.1s;
+}
+
+.page-list-item:nth-child(n+4) {
+  animation-delay: 0.15s;
+}
+
+/* ────────────────────────────────────────────────────────────────────────────
+   SEARCH RESULT EFFECTS (REMOVED BORDER + SIMPLIFIED)
+   ──────────────────────────────────────────────────────────────────────────── */
+
+.search-result-item {
+  position: relative;
   overflow: hidden;
-  white-space: nowrap;
-  text-overflow: ellipsis;
+  border: none; /* removed border styling */
 }
 
-.markdown-modal-title svg {
-  width: 24px;
-  height: 24px;
-  color: var(--accent);
-  flex-shrink: 0;
+.search-result-item:hover {
+  background: var(--surface-2); /* simple hover */
 }
 
-.markdown-modal-controls {
+/* removed glow/gradient hover effect completely */
+
+/* ────────────────────────────────────────────────────────────────────────────
+   TOOLBAR (NO ROUNDED CORNERS)
+   ──────────────────────────────────────────────────────────────────────────── */
+
+.editor-toolbar {
   display: flex;
   align-items: center;
-  gap: var(--space-3);
-  flex-shrink: 0;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 12px;
+  background: var(--surface-1);
+  border-bottom: 1px solid var(--border-subtle);
+  border-radius: 0; /* ❌ removed rounding */
 }
 
-.markdown-modal-mode-switch {
+.toolbar-group {
   display: flex;
-  background: var(--surface-3);
+  align-items: center;
+  gap: 4px;
+  background: var(--surface-2);
+  padding: 4px;
+  border-radius: 0; /* ❌ flat */
+}
+
+.toolbar-separator {
+  width: 1px;
+  height: 20px;
+  background: var(--border-subtle);
+  margin: 0 6px;
+}
+
+/* ────────────────────────────────────────────────────────────────────────────
+   EDITOR CONTAINER (FLAT)
+   ──────────────────────────────────────────────────────────────────────────── */
+
+.markdown-editor-container {
   border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-md);
-  padding: var(--space-2);
-  gap: var(--space-2);
+  border-radius: 0; /* ❌ removed rounding */
+  overflow: hidden;
+  background: var(--surface-2);
+  box-shadow: none; /* flatter design */
+  transition: border-color 0.15s ease;
 }
 
-.markdown-modal-mode-btn {
-  padding: var(--space-2) var(--space-3);
-  background: transparent;
-  border: 1px solid transparent;
-  border-radius: var(--radius-sm);
-  color: var(--text-secondary);
-  font-size: 0.8rem;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all var(--t-fast);
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
+.markdown-editor-container:focus-within {
+  border-color: var(--border-strong);
+  box-shadow: none; /* no elevation */
 }
 
-.markdown-modal-mode-btn:hover {
-  color: var(--text-primary);
+/* ────────────────────────────────────────────────────────────────────────────
+   EMPTY STATES (FLAT CLEAN STYLE)
+   ──────────────────────────────────────────────────────────────────────────── */
+
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 56px 24px;
+  text-align: center;
+  color: var(--text-muted);
 }
 
-.markdown-modal-mode-btn.active {
-  background: var(--accent);
-  color: #fff;
-  border-color: var(--accent);
-  box-shadow: var(--shadow-1);
-}
-
-.markdown-modal-close-btn {
+.empty-state-icon {
+  width: 52px;
+  height: 52px;
+  background: var(--surface-2);
+  border: 1px solid var(--border-subtle);
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 36px;
-  height: 36px;
-  padding: 0;
-  background: var(--surface-3);
-  border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-md);
-  color: var(--text-secondary);
-  font-size: 1.5rem;
-  cursor: pointer;
-  transition: all var(--t-fast);
-  line-height: 1;
+  margin-bottom: 14px;
+  opacity: 0.7;
+  border-radius: 0; /* ❌ flat */
 }
 
-.markdown-modal-close-btn:hover {
-  background: color-mix(in hsl, var(--danger) 18%, var(--surface-3));
-  color: var(--danger);
-  border-color: var(--danger);
-}
-
-/* Modal Body */
-.markdown-modal-body {
-  flex: 1;
-  overflow-y: auto;
-  padding: var(--space-7);
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-6);
-}
-
-/* Preview Content */
-.markdown-modal-preview {
-  font-size: 0.95rem;
-  line-height: 1.8;
-  color: var(--text-secondary);
-}
-
-.markdown-modal-preview h1 {
-  font-size: 2rem;
-  font-weight: 800;
-  margin: 1.5rem 0 0.75rem 0;
-  letter-spacing: -0.02em;
-  color: var(--text-primary);
-  padding-bottom: 0.75rem;
-  border-bottom: 2px solid var(--accent);
-}
-
-.markdown-modal-preview h2 {
-  font-size: 1.5rem;
-  font-weight: 700;
-  margin: 1.25rem 0 0.5rem 0;
-  letter-spacing: -0.01em;
-  color: var(--text-primary);
-  padding-bottom: 0.5rem;
-  border-bottom: 1px solid var(--border-subtle);
-}
-
-.markdown-modal-preview h3 {
-  font-size: 1.2rem;
-  font-weight: 700;
-  margin: 1rem 0 0.5rem 0;
-  color: var(--text-primary);
-}
-
-.markdown-modal-preview h4,
-.markdown-modal-preview h5,
-.markdown-modal-preview h6 {
+.empty-state-title {
+  font-size: 1rem;
   font-weight: 600;
-  margin: 0.75rem 0 0.35rem 0;
   color: var(--text-primary);
+  margin-bottom: 6px;
 }
 
-.markdown-modal-preview p {
-  margin: 1rem 0;
-  color: var(--text-secondary);
+.empty-state-desc {
+  font-size: 0.875rem;
+  color: var(--text-muted);
+  max-width: 300px;
 }
 
-.markdown-modal-preview strong {
-  color: var(--text-primary);
-  font-weight: 700;
+/* ────────────────────────────────────────────────────────────────────────────
+   ACTIVE STATE (CLEAN INDICATOR ONLY)
+   ──────────────────────────────────────────────────────────────────────────── */
+
+.item-active {
+  background: var(--surface-3);
+  border-left: 3px solid var(--accent); /* cleaner than rounded indicator */
 }
 
-.markdown-modal-preview em {
-  font-style: italic;
-  color: var(--text-secondary);
+/* removed pseudo shadow effects */
+
+/* ────────────────────────────────────────────────────────────────────────────
+   TRANSITIONS (SIMPLIFIED)
+   ──────────────────────────────────────────────────────────────────────────── */
+
+.transition-smooth {
+  transition: all 0.15s ease;
 }
 
-.markdown-modal-preview code {
-  background: var(--bg-900);
-  color: var(--accent-light);
-  padding: 0.2em 0.4em;
-  border-radius: 4px;
-  font-family: 'JetBrains Mono', 'Fira Code', monospace;
-  font-size: 0.9em;
-  border: 1px solid var(--border-subtle);
+.transition-slow {
+  transition: all 0.25s ease;
 }
 
-.markdown-modal-preview pre {
-  background: var(--bg-900);
-  color: var(--text-secondary);
-  padding: var(--space-4);
-  border-radius: var(--radius-md);
-  overflow-x: auto;
-  margin: var(--space-4) 0;
-  border: 1px solid var(--border-subtle);
-  line-height: 1.5;
-}
+/* ────────────────────────────────────────────────────────────────────────────
+   SEARCH INPUT IMPROVEMENTS (NEW ADDITION 🔥)
+   ──────────────────────────────────────────────────────────────────────────── */
 
-.markdown-modal-preview pre code {
+.search-input {
+  width: 100%;
+  padding: 14px 16px; /* ✅ added proper padding */
+  font-size: 14.5px;
   background: transparent;
   border: none;
-  padding: 0;
-  color: inherit;
-  font-size: inherit;
-}
-
-.markdown-modal-preview ul,
-.markdown-modal-preview ol {
-  margin: var(--space-4) 0 var(--space-4) var(--space-5);
-  color: var(--text-secondary);
-}
-
-.markdown-modal-preview li {
-  margin-bottom: 0.5rem;
-  color: var(--text-secondary);
-}
-
-.markdown-modal-preview blockquote {
-  border-left: 4px solid var(--accent);
-  padding-left: var(--space-4);
-  margin: var(--space-4) 0;
-  color: var(--text-muted);
-  font-style: italic;
-  background: color-mix(in hsl, var(--accent) 8%, transparent);
-  padding: var(--space-4);
-  border-radius: var(--radius-md);
-}
-
-.markdown-modal-preview a {
-  color: var(--accent);
-  text-decoration: none;
-  border-bottom: 1px solid var(--accent);
-  transition: all var(--t-fast);
-}
-
-.markdown-modal-preview a:hover {
-  color: var(--accent-light);
-  border-color: var(--accent-light);
-  text-decoration: none;
-}
-
-.markdown-modal-preview hr {
-  border: none;
-  border-top: 1px solid var(--border-subtle);
-  margin: var(--space-6) 0;
-}
-
-.markdown-modal-preview table {
-  width: 100%;
-  border-collapse: collapse;
-  margin: var(--space-4) 0;
-  font-size: 0.9rem;
-}
-
-.markdown-modal-preview th {
-  background: var(--surface-3);
-  color: var(--text-primary);
-  font-weight: 700;
-  padding: var(--space-3);
-  text-align: left;
-  border: 1px solid var(--border-subtle);
-}
-
-.markdown-modal-preview td {
-  padding: var(--space-3);
-  border: 1px solid var(--border-subtle);
-  color: var(--text-secondary);
-}
-
-.markdown-modal-preview img {
-  max-width: 100%;
-  height: auto;
-  border-radius: var(--radius-lg);
-  margin: var(--space-4) 0;
-  border: 1px solid var(--border-subtle);
-}
-
-/* Edit Mode */
-.markdown-modal-editor {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-4);
-  width: 100%;
-}
-
-.markdown-modal-editor-toolbar {
-  display: flex;
-  align-items: center;
-  gap: var(--space-2);
-  padding: var(--space-3) var(--space-4);
-  background: var(--surface-3);
-  border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-md);
-  flex-wrap: wrap;
-}
-
-.markdown-modal-editor-textarea {
-  width: 100%;
-  min-height: 400px;
-  padding: var(--space-5);
-  background: var(--surface-3);
-  border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-lg);
-  color: var(--text-primary);
-  font-family: 'JetBrains Mono', 'Fira Code', monospace;
-  font-size: 0.9rem;
-  line-height: 1.7;
-  resize: vertical;
   outline: none;
-  transition: all var(--t-fast);
-}
-
-.markdown-modal-editor-textarea::placeholder {
-  color: var(--text-muted);
-}
-
-.markdown-modal-editor-textarea:focus {
-  border-color: var(--accent);
-  box-shadow: 0 0 0 3px var(--ring);
-  background: color-mix(in hsl, var(--surface-3) 98%, var(--accent) 2%);
-}
-
-/* Modal Footer */
-.markdown-modal-footer {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: var(--space-5) var(--space-7);
-  border-top: 1px solid var(--border-subtle);
-  background: var(--surface-2);
-  flex-shrink: 0;
-  gap: var(--space-4);
-}
-
-.markdown-modal-meta {
-  display: flex;
-  align-items: center;
-  gap: var(--space-6);
-  font-size: 0.8rem;
-  color: var(--text-muted);
-}
-
-.markdown-modal-meta-item {
-  display: flex;
-  align-items: center;
-  gap: var(--space-2);
-}
-
-.markdown-modal-meta-item svg {
-  width: 16px;
-  height: 16px;
-  color: var(--accent);
-}
-
-.markdown-modal-actions {
-  display: flex;
-  align-items: center;
-  gap: var(--space-3);
-}
-
-.markdown-modal-action-btn {
-  padding: var(--space-2) var(--space-4);
-  border-radius: var(--radius-md);
-  font-size: 0.9rem;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all var(--t-fast);
-  border: 1px solid var(--border-subtle);
-  display: flex;
-  align-items: center;
-  gap: var(--space-2);
-}
-
-.markdown-modal-action-btn.primary {
-  background: var(--accent);
-  color: #fff;
-  border-color: var(--accent);
-  box-shadow: var(--shadow-1);
-}
-
-.markdown-modal-action-btn.primary:hover {
-  background: var(--accent-light);
-  border-color: var(--accent-light);
-  box-shadow: var(--shadow-2);
-}
-
-.markdown-modal-action-btn.secondary {
-  background: var(--surface-3);
   color: var(--text-primary);
-  border-color: var(--border-subtle);
 }
 
-.markdown-modal-action-btn.secondary:hover {
-  background: color-mix(in hsl, var(--surface-3) 85%, transparent);
-  border-color: var(--border-strong);
+.search-input::placeholder {
+  color: var(--text-muted);
 }
 
-/* Syntax Highlighting Support */
-.markdown-modal-preview code[class*="language-"],
-.markdown-modal-preview pre[class*="language-"] {
-  color: inherit;
-  background: var(--bg-900);
+/* focus state without border glow */
+.search-input:focus {
+  outline: none;
 }
 
-.markdown-modal-preview code[class*="language-"]::before,
-.markdown-modal-preview code[class*="language-"]::after {
-  content: none;
-}
+/* ────────────────────────────────────────────────────────────────────────────
+   MODAL BACKDROP (CLEAN FLAT STYLE)
+   ──────────────────────────────────────────────────────────────────────────── */
 
-/* Responsive Design */
-@media (max-width: 768px) {
-  .markdown-modal {
-    max-height: 95vh;
-    border-radius: var(--radius-lg);
-  }
-
-  .markdown-modal-header {
-    padding: var(--space-4) var(--space-5);
-  }
-
-  .markdown-modal-body {
-    padding: var(--space-5);
-  }
-
-  .markdown-modal-footer {
-    padding: var(--space-4) var(--space-5);
-    flex-direction: column;
-    align-items: flex-start;
-  }
-
-  .markdown-modal-title {
-    font-size: 1rem;
-    max-width: 60%;
-  }
-
-  .markdown-modal-controls {
-    gap: var(--space-2);
-  }
-
-  .markdown-modal-editor-textarea {
-    min-height: 250px;
-  }
-
-  .markdown-modal-actions {
-    width: 100%;
-    justify-content: flex-end;
-  }
-}
-
-@media (max-width: 480px) {
-  .markdown-modal {
-    max-width: 100%;
-    border-radius: var(--radius-lg);
-    max-height: 98vh;
-  }
-
-  .markdown-modal-header {
-    padding: var(--space-3) var(--space-4);
-  }
-
-  .markdown-modal-body {
-    padding: var(--space-4);
-  }
-
-  .markdown-modal-title {
-    font-size: 0.95rem;
-    max-width: 50%;
-  }
-
-  .markdown-modal-mode-switch {
-    display: none;
-  }
-
-  .markdown-modal-meta {
-    flex-direction: column;
-    gap: var(--space-2);
-  }
-
-  .markdown-modal-footer {
-    padding: var(--space-3) var(--space-4);
-  }
+.modal-backdrop {
+  background: rgba(0, 0, 0, 0.65);
+  backdrop-filter: blur(2px);
 }
