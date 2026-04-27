@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, } from 'react';
 import { useRouter } from 'next/navigation';
 import {
   FileText,
@@ -15,9 +15,10 @@ import {
 import { GoogleDocsEditor } from './GoogleDocsEditor';
 import { ZenChat } from './ZenChat';
 import { useWiki } from '@/context/WikiContext';
+import { useTheme } from '@/context/ThemeContext';
+import { ReviewPublish } from './ReviewPublish';
 import axios from 'axios';
-
-const API = 'http://localhost:8000/api';
+import { API_BASE as API } from '@/lib/api';
 
 interface KnowledgeStudioProps {
   onCreated: (pageId: number) => void;
@@ -41,10 +42,13 @@ export function KnowledgeStudio({
 }: KnowledgeStudioProps) {
   const router = useRouter();
   const { zenMode, setZenMode, wikiPages, fetchWikiPages } = useWiki();
+  const { theme } = useTheme();
 
   const [title, setTitle] = useState('');
   const [editorDraft, setEditorDraft] = useState('');
   const [isSaving, setIsSaving] = useState(false);
+  const [stagedChanges, setStagedChanges] = useState<any>(null);
+  const [autoApprove, setAutoApprove] = useState(false);
 
   const [showPageSelector, setShowPageSelector] = useState(false);
   const [pageSearch, setPageSearch] = useState('');
@@ -113,13 +117,17 @@ export function KnowledgeStudio({
     setIsSaving(true);
 
     try {
-      await axios.post(`${API}/ingest/text`, {
+      const res = await axios.post(`${API}/ingest/text`, {
         title: cleanTitle,
         text: finalBody,
-        auto_approve: true,
+        auto_approve: autoApprove,
       });
 
-      onCreated(-1);
+      if (res.data.status === 'staged') {
+        setStagedChanges(res.data.proposed_changes);
+      } else {
+        onCreated(-1);
+      }
     } catch (error) {
       console.error('Publish failed:', error);
     } finally {
@@ -144,15 +152,25 @@ export function KnowledgeStudio({
     }
   };
 
+  if (stagedChanges) {
+    return (
+      <ReviewPublish
+        isOpen={true}
+        onClose={() => setStagedChanges(null)}
+        staged={stagedChanges}
+        onApproved={() => onCreated(-1)}
+      />
+    );
+  }
+
   return (
     <div
-      className={`flex flex-col h-full bg-[var(--bg-900)] ${
-        zenMode ? 'zen-active' : ''
-      }`}
+      className="flex flex-col h-full bg-[var(--bg-900)]"
     >
       {/* ─────────────────────────────────────────────
           TOP BAR
-         ───────────────────────────────────────────── */}
+         ───────────────────────────────────────────── */
+      }
       <div className="flex items-center justify-center h-16 border-b border-[var(--border-subtle)] shrink-0 bg-[var(--surface-1)] overflow-visible">
         <div className="flex items-center justify-between w-full max-w-4xl px-6">
           {/* Left */}
@@ -253,20 +271,33 @@ export function KnowledgeStudio({
             </div>
 
             {/* PUBLISH BUTTON — FULL THEME RESPONSIVE */}
+            <div className="flex items-center gap-2 mr-2">
+              <input
+                type="checkbox"
+                id="autoApprove"
+                checked={autoApprove}
+                onChange={(e) => setAutoApprove(e.target.checked)}
+                className="w-4 h-4 rounded border-[var(--border-subtle)] text-[var(--accent-primary)] focus:ring-[var(--accent-primary)] bg-[var(--surface-3)]"
+              />
+              <label htmlFor="autoApprove" className="text-xs text-[var(--text-muted)] cursor-pointer select-none">
+                Auto-apply
+              </label>
+            </div>
+
             <button
               onClick={handlePublish}
               disabled={isSaving || !title.trim()}
-              className="
+              className={`
                 flex items-center gap-2
                 px-4 py-2
                 text-sm font-semibold
                 border border-[var(--border-subtle)]
-                bg-[var(--accent-primary)]
+                ${autoApprove ? 'bg-[var(--accent-primary)]' : 'bg-[var(--surface-3)]'}
                 ${theme === 'dark' ? 'text-white' : 'text-black'}
                 hover:opacity-90
                 disabled:opacity-50
                 transition-all duration-150
-              "
+              `}
             >
               {isSaving ? (
                 <Loader2 className="w-4 h-4 animate-spin" />
@@ -274,7 +305,7 @@ export function KnowledgeStudio({
                 <ArrowRight className="w-4 h-4" />
               )}
 
-              {isSaving ? 'Publishing...' : 'Publish'}
+              {isSaving ? 'Processing...' : 'Publish'}
             </button>
           </div>
         </div>
@@ -309,9 +340,6 @@ export function KnowledgeStudio({
         </div>
       </div>
 
-      {/* ─────────────────────────────────────────────
-          ZEN MODE
-         ───────────────────────────────────────────── */}
       {zenMode && <ZenChat />}
 
       {!zenMode && (

@@ -179,13 +179,6 @@ export function PageEditor({
               <Star className={`w-4 h-4 ${isFavorite ? 'fill-current' : ''}`} />
             </button>
 
-            <button
-              onClick={() => setIsChatOpen(!isChatOpen)}
-              className="p-1.5 text-[var(--text-secondary)]"
-            >
-              <MessageSquare className="w-4 h-4" />
-            </button>
-
             <button className="p-1.5 text-[var(--text-secondary)]">
               <Share2 className="w-4 h-4" />
             </button>
@@ -222,22 +215,7 @@ export function PageEditor({
         </div>
 
         {/* ───────────────────────── Chat Overlay (NO LAYOUT SHIFT) ───────────────────────── */}
-        <div
-          className={`absolute right-0 top-0 h-full w-80 border-l border-[var(--border-subtle)] bg-[var(--surface-1)] flex flex-col transition-transform duration-200 ${
-            isChatOpen ? 'translate-x-0' : 'translate-x-full'
-          }`}
-        >
-          <header className="p-4 border-b border-[var(--border-subtle)] flex justify-between">
-            <span className="text-sm font-medium">Assistant</span>
-            <button onClick={() => setIsChatOpen(false)}>
-              <ChevronLeft className="w-4 h-4 rotate-180" />
-            </button>
-          </header>
 
-          <div className="flex-1 min-h-0">
-            <ChatSidebar pageTitle={page.title} />
-          </div>
-        </div>
       </div>
 
       {/* Zen Mode */}

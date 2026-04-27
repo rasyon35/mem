@@ -120,3 +120,23 @@
 {"event": "chat_query_completed", "timestamp": 1777292078.999575, "payload": {"with_page_context": false, "question_len": 24, "surface": "synthesis"}}
 {"event": "chat_answer_received", "timestamp": 1777292079.047968, "payload": {"surface": "synthesis", "mode": "global", "confidence": "medium", "citations_count": 3}}
 {"event": "frontend_chat_completed", "timestamp": 1777292079.0979624, "payload": {"surface": "synthesis", "with_page_context": false, "has_error": false}}
+{"event": "ingest_text_completed", "timestamp": 1777293630.641442, "payload": {"title": "Wiki Implementation Analysis: mem-desktop", "auto_approve": true, "has_error": true, "status": null}}
+{"event": "ingest_text_completed", "timestamp": 1777294020.814265, "payload": {"title": "History", "auto_approve": true, "has_error": false, "status": "applied"}}
+{"event": "chat_message_sent", "timestamp": 1777294074.9470448, "payload": {"surface": "main", "mode": "global", "has_context": false}}
+{"event": "chat_query_completed", "timestamp": 1777294075.9638727, "payload": {"with_page_context": false, "question_len": 21, "surface": "main"}}
+{"event": "chat_answer_received", "timestamp": 1777294076.0131133, "payload": {"surface": "main", "mode": "global", "confidence": "medium", "citations_count": 3}}
+{"event": "frontend_chat_completed", "timestamp": 1777294076.0594716, "payload": {"surface": "main", "with_page_context": false, "has_error": false}}
+{"event": "ingest_text_completed", "timestamp": 1777294770.4264479, "payload": {"title": "geography", "auto_approve": false, "has_error": false, "status": "staged"}}
+{"event": "ingest_text_completed", "timestamp": 1777299058.9423726, "payload": {"title": "Geography", "auto_approve": true, "has_error": false, "status": "applied"}}
+{"event": "ingest_text_completed", "timestamp": 1777301380.7474778, "payload": {"title": "chat", "auto_approve": false, "has_error": false, "status": "staged"}}
+{"event": "approve_changes_completed", "timestamp": 1777301436.0934227, "payload": {"has_error": false, "status": "applied"}}
+{"event": "ingest_text_completed", "timestamp": 1777301936.9774206, "payload": {"title": "Physics", "auto_approve": false, "has_error": false, "status": "staged"}}
+{"event": "approve_changes_completed", "timestamp": 1777302056.7843223, "payload": {"has_error": false, "status": "applied"}}
+{"event": "chat_message_sent", "timestamp": 1777302072.551449, "payload": {"surface": "synthesis", "mode": "global", "has_context": false}}
+{"event": "chat_query_completed", "timestamp": 1777302075.362362, "payload": {"with_page_context": false, "question_len": 21, "surface": "synthesis"}}
+{"event": "chat_answer_received", "timestamp": 1777302075.439224, "payload": {"surface": "synthesis", "mode": "global", "confidence": "medium", "citations_count": 3}}
+{"event": "frontend_chat_completed", "timestamp": 1777302075.6896272, "payload": {"surface": "synthesis", "with_page_context": false, "has_error": false}}
+{"event": "chat_message_sent", "timestamp": 1777304036.7817514, "payload": {"surface": "synthesis", "mode": "global", "has_context": false}}
+{"event": "chat_query_completed", "timestamp": 1777304049.6812308, "payload": {"with_page_context": false, "question_len": 25, "surface": "synthesis"}}
+{"event": "chat_answer_received", "timestamp": 1777304049.9213996, "payload": {"surface": "synthesis", "mode": "global", "confidence": "medium", "citations_count": 3}}
+{"event": "frontend_chat_completed", "timestamp": 1777304050.1809785, "payload": {"surface": "synthesis", "with_page_context": false, "has_error": false}}

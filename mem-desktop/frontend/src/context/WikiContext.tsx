@@ -2,7 +2,8 @@
 
 import React, { createContext, useContext, useState, useRef, useEffect } from 'react';
 import axios from 'axios';
-import { API_BASE as API } from '@/lib/api';
+
+const API = 'http://localhost:8000/api';
 
 export type WikiPage = { title: string; description: string; type?: string; category?: string };
 export type ChatSurface = 'main' | 'wiki' | 'graph' | 'synthesis';
@@ -446,7 +447,6 @@ export const WikiProvider: React.FC<{ children: React.ReactNode }> = ({ children
     try {
       const res = await axios.get(`${API}/wiki/markdown-files`);
       const pages = (res.data.pages || []).map((p: any) => ({
-        id: p.id,
         title: p.title || p.slug,
         slug: p.slug,
         category: p.topic_name || 'Knowledge',
