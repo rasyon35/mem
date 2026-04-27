@@ -145,3 +145,19 @@
 {"event": "approve_changes_completed", "timestamp": 1777305967.8265762, "payload": {"has_error": false, "status": "applied"}}
 {"event": "ingest_text_completed", "timestamp": 1777306010.5387914, "payload": {"title": "History", "auto_approve": false, "has_error": false, "status": "staged"}}
 {"event": "approve_changes_completed", "timestamp": 1777306034.9032753, "payload": {"has_error": false, "status": "applied"}}
+{"event": "chat_message_sent", "timestamp": 1777308398.656281, "payload": {"surface": "main", "mode": "wiki_page", "has_context": true}}
+{"event": "chat_query_completed", "timestamp": 1777308413.8544478, "payload": {"with_page_context": true, "question_len": 33, "surface": "main"}}
+{"event": "chat_answer_received", "timestamp": 1777308413.9070528, "payload": {"surface": "main", "mode": "wiki_page", "confidence": "high", "citations_count": 1}}
+{"event": "frontend_chat_completed", "timestamp": 1777308413.9581351, "payload": {"surface": "main", "with_page_context": true, "has_error": false}}
+{"event": "chat_message_sent", "timestamp": 1777315629.0880284, "payload": {"surface": "main", "mode": "wiki_page", "has_context": true}}
+{"event": "chat_query_completed", "timestamp": 1777315653.6070585, "payload": {"with_page_context": true, "question_len": 19, "surface": "main"}}
+{"event": "chat_answer_received", "timestamp": 1777315653.6550968, "payload": {"surface": "main", "mode": "wiki_page", "confidence": "high", "citations_count": 1}}
+{"event": "frontend_chat_completed", "timestamp": 1777315653.7016282, "payload": {"surface": "main", "with_page_context": true, "has_error": false}}
+{"event": "chat_message_sent", "timestamp": 1777315683.5419204, "payload": {"surface": "main", "mode": "wiki_page", "has_context": true}}
+{"event": "chat_query_completed", "timestamp": 1777315686.1553738, "payload": {"with_page_context": true, "question_len": 16, "surface": "main"}}
+{"event": "chat_answer_received", "timestamp": 1777315686.1651163, "payload": {"surface": "main", "mode": "wiki_page", "confidence": "high", "citations_count": 1}}
+{"event": "frontend_chat_completed", "timestamp": 1777315686.2299578, "payload": {"surface": "main", "with_page_context": true, "has_error": false}}
+{"event": "chat_message_sent", "timestamp": 1777315754.4717038, "payload": {"surface": "main", "mode": "wiki_page", "has_context": true}}
+{"event": "chat_query_completed", "timestamp": 1777315759.421141, "payload": {"with_page_context": true, "question_len": 35, "surface": "main"}}
+{"event": "chat_answer_received", "timestamp": 1777315759.4319067, "payload": {"surface": "main", "mode": "wiki_page", "confidence": "high", "citations_count": 1}}
+{"event": "frontend_chat_completed", "timestamp": 1777315759.5286832, "payload": {"surface": "main", "with_page_context": true, "has_error": false}}
