@@ -2,11 +2,10 @@
 
 import React, { createContext, useContext, useState, useRef, useEffect } from 'react';
 import axios from 'axios';
-
-const API = 'http://localhost:8000/api';
+import { API_BASE as API } from '@/lib/api';
 
 export type WikiPage = { title: string; description: string; type?: string; category?: string };
-export type ChatSurface = 'main' | 'wiki' | 'graph';
+export type ChatSurface = 'main' | 'wiki' | 'graph' | 'synthesis';
 export type ChatCitation = {
   page_title: string;
   snippet?: string;
@@ -165,6 +164,8 @@ interface WikiContextType {
   undoQueryArtifact: (artifactId: number) => Promise<void>;
   zenMode: boolean;
   setZenMode: (v: boolean) => void;
+  wikiSidebarOpen: boolean;
+  setWikiSidebarOpen: (v: boolean) => void;
 }
 
 const WikiContext = createContext<WikiContextType | undefined>(undefined);
@@ -188,10 +189,12 @@ export const WikiProvider: React.FC<{ children: React.ReactNode }> = ({ children
     main: defaultSurfaceState(),
     wiki: defaultSurfaceState(),
     graph: defaultSurfaceState(),
+    synthesis: defaultSurfaceState(),
   });
   const mainChatEndRef = useRef<HTMLDivElement>(null);
   const wikiChatEndRef = useRef<HTMLDivElement>(null);
   const graphChatEndRef = useRef<HTMLDivElement>(null);
+  const synthesisChatEndRef = useRef<HTMLDivElement>(null);
 
   const [wikiPages, setWikiPages] = useState<any[]>([]);
   const [gitHistory, setGitHistory] = useState<any[]>([]);
@@ -223,11 +226,13 @@ export const WikiProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [remediationTasks, setRemediationTasks] = useState<any[]>([]);
   const [queryArtifacts, setQueryArtifacts] = useState<any[]>([]);
   const [zenMode, setZenMode] = useState(false);
+  const [wikiSidebarOpen, setWikiSidebarOpen] = useState(false);
 
 
   const getChatEndRef = (surface: ChatSurface) => {
     if (surface === 'wiki') return wikiChatEndRef;
     if (surface === 'graph') return graphChatEndRef;
+    if (surface === 'synthesis') return synthesisChatEndRef;
     return mainChatEndRef;
   };
   const getSurfaceState = (surface: ChatSurface) => chatState[surface];
@@ -244,6 +249,9 @@ export const WikiProvider: React.FC<{ children: React.ReactNode }> = ({ children
   useEffect(() => {
     graphChatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [chatState.graph.chatLog]);
+  useEffect(() => {
+    synthesisChatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [chatState.synthesis.chatLog]);
 
   const trackMetricEvent = async (event: string, payload: Record<string, unknown> = {}) => {
     try {
@@ -438,6 +446,7 @@ export const WikiProvider: React.FC<{ children: React.ReactNode }> = ({ children
     try {
       const res = await axios.get(`${API}/wiki/markdown-files`);
       const pages = (res.data.pages || []).map((p: any) => ({
+        id: p.id,
         title: p.title || p.slug,
         slug: p.slug,
         category: p.topic_name || 'Knowledge',
@@ -720,7 +729,8 @@ export const WikiProvider: React.FC<{ children: React.ReactNode }> = ({ children
       suggestedLinks, suggestionsLoading, fetchSuggestions,
       runLint, lintRuns, lintFindings, remediationTasks, fetchLintFindings, fetchRemediationTasks, updateRemediationTask,
       fetchQueryArtifacts, queryArtifacts, undoQueryArtifact,
-      zenMode, setZenMode
+      zenMode, setZenMode,
+      wikiSidebarOpen, setWikiSidebarOpen
     }}>
       {children}
     </WikiContext.Provider>

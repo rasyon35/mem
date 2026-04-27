@@ -20,7 +20,6 @@ export default function SettingsPage() {
     fetchWikiPages
   } = useWiki();
 
-  // Bulk reorganization state
   const [reorgPreview, setReorgPreview] = useState<ReorgItem[]>([]);
   const [reorgLoading, setReorgLoading] = useState(false);
   const [reorgApplying, setReorgApplying] = useState(false);
@@ -98,12 +97,10 @@ export default function SettingsPage() {
     }
   };
 
-  // eslint-disable-next-line react-hooks/set-state-in-effect
   useEffect(() => {
     loadKpiSummary();
   }, []);
 
-  // Count how many categories will change
   const changedCount = reorgPreview.filter(item => {
     const proposed = reorgEdits[item.title] ?? item.proposed_category;
     return proposed !== item.current_category;
@@ -111,150 +108,107 @@ export default function SettingsPage() {
 
   return (
     <section className="panel" id="panel-settings">
-      <h1 className="panel-title">Management</h1>
+      <header className="panel-header">
+        <h1 className="panel-title">Settings</h1>
+        <p className="panel-sub">Manage your workspace preferences and data.</p>
+      </header>
 
       <div className="card">
-        <h2 className="text-xl font-bold mb-2" style={{ color: 'var(--text-primary)' }}>Preferences</h2>
-        <div className="flex flex-col gap-3">
-          <label className="toggle-switch">
-            <input
-              type="checkbox"
-              className="toggle-input"
-              checked={autoApprove}
-              onChange={e => setAutoApprove(e.target.checked)}
-            />
-            <div className="toggle-track">
-              <div className="toggle-thumb" />
+        <h2 className="text-lg font-semibold text-text-primary">Preferences</h2>
+        <div className="mt-2">
+          <label className="toggle-label">
+            <div className={`toggle ${autoApprove ? 'on' : ''}`} onClick={() => setAutoApprove(!autoApprove)}>
+              <span className="toggle-thumb" />
             </div>
             <span>Auto-approve non-critical updates</span>
           </label>
         </div>
       </div>
 
-      {/* --- Data Export & Archival Card --- */}
       <div className="card">
-        <div className="flex justify-between items-center mb-2">
+        <div className="flex justify-between items-start">
           <div>
-            <h2 className="text-xl font-bold" style={{ color: 'var(--text-primary)' }}>Data Export & Archival</h2>
-            <p className="panel-sub">Download a complete snapshot of your knowledge base or publish a public site.</p>
+            <h2 className="text-lg font-semibold text-text-primary">Data Export & Archival</h2>
+            <p className="text-sm text-text-secondary mt-1">Download a complete snapshot of your knowledge base or publish a public site.</p>
           </div>
           <div className="flex gap-2">
             <button
-              className="btn-secondary flex items-center justify-center gap-2"
+              className="btn-secondary"
               onClick={handlePublish}
               disabled={publishing}
             >
-              {publishing ? <Spinner /> : '🚀 Publish to Public Docs'}
+              {publishing ? <Spinner /> : 'Publish'}
             </button>
             <a
               href={`${API}/export_all`}
               download
-              className="btn-primary flex items-center justify-center gap-2"
+              className="btn-primary"
             >
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-              Download Archive (.zip)
+              Download Archive
             </a>
           </div>
         </div>
         {publishUrl && (
-          <div style={{ marginTop: '12px', padding: '12px', background: 'rgba(16,185,129,0.08)', border: '1px solid rgba(16,185,129,0.25)', borderRadius: '12px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <p style={{ fontSize: '12px', color: 'var(--text-primary)' }}>✓ Site published! <code style={{ color: 'var(--accent)' }}>{publishUrl}</code></p>
-            <button style={{ fontSize: '10px', fontWeight: 700, color: 'var(--accent)', textTransform: 'uppercase', background: 'none', border: 'none', cursor: 'pointer' }} onClick={() => copyToClipboard(publishUrl)}>Copy Path</button>
+          <div className="mt-4 p-3 bg-surface-3 border border-border-strong rounded-md flex justify-between items-center">
+            <p className="text-sm text-text-primary">Site published: <code className="text-accent">{publishUrl}</code></p>
+            <button className="btn-ghost !text-xs" onClick={() => copyToClipboard(publishUrl)}>Copy</button>
           </div>
         )}
       </div>
 
       <div className="card">
-        <h2 className="text-xl font-bold mb-2" style={{ color: 'var(--text-primary)' }}>Product Scope</h2>
-        <p className="panel-sub">
-          This build focuses on core local-first workflows only: ingest, wiki editing, search/chat, history, and settings.
-        </p>
-        <p className="panel-sub mt-2">
-          External automation and autonomous agents are intentionally excluded in this version to prioritize reliability.
-        </p>
-      </div>
-
-      <div className="card">
-        <div className="flex justify-between items-center mb-2">
+        <div className="flex justify-between items-start">
           <div>
-            <h2 className="text-xl font-bold" style={{ color: 'var(--text-primary)' }}>MVP KPI Snapshot</h2>
-            <p className="panel-sub">Local event counters for activation, usage, trust, and quality validation.</p>
+            <h2 className="text-lg font-semibold text-text-primary">Category Organization</h2>
+            <p className="text-sm text-text-secondary mt-1">Use the LLM to propose categories for all wiki pages.</p>
           </div>
-          <button className="btn-ghost !py-1 !px-3 text-[10px] font-black uppercase tracking-widest" onClick={loadKpiSummary}>
-            Refresh
-          </button>
-        </div>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-          <div className="critical-page-item"><span>Ingest completed</span><strong>{kpiCounts.frontend_ingest_completed || 0}</strong></div>
-          <div className="critical-page-item"><span>Approvals completed</span><strong>{kpiCounts.frontend_approve_completed || 0}</strong></div>
-          <div className="critical-page-item"><span>Chats completed</span><strong>{kpiCounts.frontend_chat_completed || 0}</strong></div>
-          <div className="critical-page-item"><span>Pages opened</span><strong>{kpiCounts.frontend_page_opened || 0}</strong></div>
-        </div>
-      </div>
-
-      {/* --- Bulk Reorganization Card --- */}
-      <div className="card">
-        <div className="flex justify-between items-center mb-2">
-          <div>
-            <h2 className="text-xl font-bold" style={{ color: 'var(--text-primary)' }}>Category Organization</h2>
-            <p className="panel-sub">Use the LLM to propose categories for all wiki pages, then review and apply.</p>
-          </div>
-          <button className="btn-primary" onClick={handleReorganize} disabled={reorgLoading}>
-            {reorgLoading ? <><Spinner /> Analyzing...</> : '🧠 Reorganize with AI'}
+          <button className="btn-secondary" onClick={handleReorganize} disabled={reorgLoading}>
+            {reorgLoading ? <Spinner /> : 'Reorganize'}
           </button>
         </div>
 
         {reorgDone && (
-          <div className="p-3 bg-green-500/10 border border-green-500/30 rounded-lg text-green-400 text-sm font-medium mt-2">
-            ✓ Categories applied successfully! Sidebar will update on next refresh.
+          <div className="mt-4 p-3 border border-success text-success bg-surface-2 rounded-md text-sm">
+            Categories applied successfully.
           </div>
         )}
 
         {reorgPreview.length > 0 && (
-          <div className="mt-4">
-            <div className="flex justify-between items-center mb-3">
-              <p className="text-sm text-muted">
-                <strong className="text-white">{changedCount}</strong> of {reorgPreview.length} pages will be re-categorized.
-                You can edit any category before applying.
+          <div className="mt-6 border-t border-border-subtle pt-4">
+            <div className="flex justify-between items-center mb-4">
+              <p className="text-sm text-text-secondary">
+                <strong className="text-text-primary">{changedCount}</strong> of {reorgPreview.length} pages will be re-categorized.
               </p>
               <button 
                 className="btn-success" 
                 onClick={handleApplyReorg} 
                 disabled={reorgApplying}
               >
-                {reorgApplying ? <><Spinner /> Applying...</> : `✓ Apply ${changedCount} Changes`}
+                {reorgApplying ? <Spinner /> : 'Apply Changes'}
               </button>
             </div>
 
-            <div className="overflow-y-auto" style={{ maxHeight: '500px' }}>
-              <table className="w-full text-sm" style={{ borderCollapse: 'separate', borderSpacing: 0 }}>
-                <thead>
-                  <tr className="text-xs text-muted uppercase tracking-wider">
-                    <th className="text-left p-2 sticky top-0 bg-bg-800 z-10">Page</th>
-                    <th className="text-left p-2 sticky top-0 bg-bg-800 z-10">Current</th>
-                    <th className="text-left p-2 sticky top-0 bg-bg-800 z-10">→</th>
-                    <th className="text-left p-2 sticky top-0 bg-bg-800 z-10">Proposed (editable)</th>
+            <div className="overflow-y-auto rounded-md border border-border-subtle bg-surface-2" style={{ maxHeight: '400px' }}>
+              <table className="w-full text-sm text-left">
+                <thead className="bg-surface-3 text-text-muted sticky top-0">
+                  <tr>
+                    <th className="p-3 font-medium border-b border-border-subtle">Page</th>
+                    <th className="p-3 font-medium border-b border-border-subtle">Current</th>
+                    <th className="p-3 font-medium border-b border-border-subtle">Proposed</th>
                   </tr>
                 </thead>
-                <tbody>
+                <tbody className="divide-y divide-border-subtle">
                   {reorgPreview.map(item => {
                     const proposed = reorgEdits[item.title] ?? item.proposed_category;
                     const changed = proposed !== item.current_category;
                     return (
-                      <tr 
-                        key={item.title} 
-                        className={`border-b border-border/30 ${changed ? 'bg-accent/5' : ''}`}
-                      >
-                        <td className="p-2 font-medium text-white truncate" style={{ maxWidth: '220px' }} title={item.title}>
-                          {item.title.replace(/_/g, ' ')}
-                        </td>
-                        <td className="p-2 text-muted">{item.current_category}</td>
-                        <td className="p-2">{changed ? <span className="text-accent">→</span> : <span className="text-muted">—</span>}</td>
-                        <td className="p-2">
+                      <tr key={item.title} className={changed ? 'bg-surface-3' : ''}>
+                        <td className="p-3 font-medium text-text-primary">{item.title.replace(/_/g, ' ')}</td>
+                        <td className="p-3 text-text-secondary">{item.current_category}</td>
+                        <td className="p-3">
                           <input
                             type="text"
-                            className="text-input"
-                            style={{ padding: '3px 8px', fontSize: '12px', width: '200px' }}
+                            className="text-input !py-1 !text-xs"
                             value={proposed}
                             onChange={e => updateProposedCategory(item.title, e.target.value)}
                           />
@@ -269,30 +223,27 @@ export default function SettingsPage() {
         )}
       </div>
 
-      <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
-        <div className="flex flex-col gap-1" style={{ padding: '1.25rem', borderBottom: '1px solid var(--border)' }}>
-          <h2 className="text-xl font-bold" style={{ color: 'var(--text-primary)' }}>Contradiction Hub</h2>
-          <p className="panel-sub">Review and resolve claims that conflict across sources.</p>
-        </div>
+      <div className="card">
+        <h2 className="text-lg font-semibold text-text-primary">Contradiction Hub</h2>
+        <p className="text-sm text-text-secondary mt-1 mb-4">Review and resolve claims that conflict across sources.</p>
 
         <div className="contradiction-list">
           {contradictions.length === 0 ? (
-            <div className="empty-state">No pending contradictions! ✓</div>
+            <div className="empty-state !p-6">No pending contradictions.</div>
           ) : (
             contradictions.map(c => (
               <div key={c.id} className="contradiction-box">
                 <div className="contradiction-header">
-                  <strong>Conflict in: {c.page}</strong>
+                  <strong className="font-semibold">{c.page}</strong>
                   <span className={`badge badge-${c.confidence}`}>{c.confidence}</span>
                 </div>
                 <div className="contradiction-comparison">
                   <div className="comparison-pane">
-                    <label>Existing Wiki Claim</label>
+                    <label>Existing Claim</label>
                     <div className="pane-content">{c.existing}</div>
                   </div>
-                  <div className="comparison-divider" />
                   <div className="comparison-pane">
-                    <label>New Source Claim ({c.source_name})</label>
+                    <label>New Claim ({c.source_name})</label>
                     <div className="pane-content">{c.new}</div>
                   </div>
                 </div>
@@ -307,31 +258,55 @@ export default function SettingsPage() {
       </div>
 
       <div className="card">
-        <h2 className="text-xl font-bold mb-2" style={{ color: 'var(--text-primary)' }}>Critical Pages</h2>
-        <p className="panel-sub mb-4">Changes to these pages always require human review.</p>
+        <h2 className="text-lg font-semibold text-text-primary">Critical Pages</h2>
+        <p className="text-sm text-text-secondary mt-1 mb-4">Changes to these pages always require human review.</p>
 
-        <div className="flex flex-wrap gap-2 mb-4">
+        <div className="flex gap-2 mb-4">
           <input
             className="text-input"
-            style={{ flex: '1 1 200px' }}
             placeholder="Page title (e.g., Overview)"
             value={newCritical}
             onChange={e => setNewCritical(e.target.value)}
           />
-          <button className="btn-primary" style={{ flex: '0 0 auto' }} onClick={addCritical}>Add</button>
+          <button className="btn-secondary" onClick={addCritical}>Add</button>
         </div>
 
         <div className="flex flex-col gap-2">
           {criticalPages.length === 0 ? (
-            <p className="text-sm text-muted">No critical pages defined.</p>
+            <p className="text-sm text-text-muted">No critical pages defined.</p>
           ) : (
             criticalPages.map(p => (
               <div key={p.id} className="critical-page-item">
                 <span>{p.title}</span>
-                <button className="btn-ghost" onClick={() => removeCritical(p.title)}>Remove</button>
+                <button className="btn-ghost !text-xs" onClick={() => removeCritical(p.title)}>Remove</button>
               </div>
             ))
           )}
+        </div>
+      </div>
+      
+      <div className="card">
+        <div className="flex justify-between items-center mb-4">
+          <h2 className="text-lg font-semibold text-text-primary">KPI Snapshot</h2>
+          <button className="btn-ghost !text-xs" onClick={loadKpiSummary}>Refresh</button>
+        </div>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <div className="flex flex-col gap-1 p-3 bg-surface-3 rounded-md">
+            <span className="text-xs text-text-muted">Ingests</span>
+            <span className="text-xl font-semibold">{kpiCounts.frontend_ingest_completed || 0}</span>
+          </div>
+          <div className="flex flex-col gap-1 p-3 bg-surface-3 rounded-md">
+            <span className="text-xs text-text-muted">Approvals</span>
+            <span className="text-xl font-semibold">{kpiCounts.frontend_approve_completed || 0}</span>
+          </div>
+          <div className="flex flex-col gap-1 p-3 bg-surface-3 rounded-md">
+            <span className="text-xs text-text-muted">Chats</span>
+            <span className="text-xl font-semibold">{kpiCounts.frontend_chat_completed || 0}</span>
+          </div>
+          <div className="flex flex-col gap-1 p-3 bg-surface-3 rounded-md">
+            <span className="text-xs text-text-muted">Pages</span>
+            <span className="text-xl font-semibold">{kpiCounts.frontend_page_opened || 0}</span>
+          </div>
         </div>
       </div>
     </section>

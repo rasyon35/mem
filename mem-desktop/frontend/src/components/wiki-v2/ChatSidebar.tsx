@@ -1,10 +1,9 @@
 'use client';
 
-import { useEffect, useRef } from 'react';
+import { useEffect } from 'react';
 import { useWiki } from '@/context/WikiContext';
 import { Send, RefreshCw, Trash2, HelpCircle } from 'lucide-react';
 import { ChatCitationCard } from '@/components/ChatCitationCard';
-import { Spinner } from '@/components/Icons';
 
 interface ChatSidebarProps {
   pageTitle: string;
@@ -12,14 +11,12 @@ interface ChatSidebarProps {
 
 export function ChatSidebar({ pageTitle }: ChatSidebarProps) {
   const { 
-    getChatState, setQuestionForSurface, ask, retry, clearConversation, trackMetricEvent, setContext
+    getChatState, setQuestionForSurface, ask, clearConversation, setContext
   } = useWiki();
   
-  // Use 'wiki' surface for the editor-specific chat
   const { question, chatLog, chatLoading, chatEndRef } = getChatState('wiki');
 
   useEffect(() => {
-    // Set context to the current wiki page
     setContext('wiki', 'wiki_page', { pageTitle });
   }, [pageTitle]);
 
@@ -29,38 +26,42 @@ export function ChatSidebar({ pageTitle }: ChatSidebarProps) {
   };
 
   return (
-    <div className="flex flex-col h-full relative">
-      <div className="flex-1 overflow-y-auto px-6 py-4 custom-scrollbar flex flex-col gap-4">
+    <div className="flex flex-col h-full bg-[var(--surface-1)]">
+      <div className="flex-1 overflow-y-auto px-4 py-4 custom-scrollbar flex flex-col gap-4">
         {chatLog.length === 0 && (
-          <div className="flex-1 flex flex-col items-center justify-center text-center p-8 opacity-20 gap-4">
-             <HelpCircle className="w-12 h-12" />
-             <p className="text-xs font-bold uppercase tracking-[0.2em]">How can I help with this node?</p>
-             <div className="flex flex-col gap-2 w-full mt-4">
+          <div className="flex-1 flex flex-col items-center justify-center text-center p-4">
+             <HelpCircle className="w-8 h-8 text-[var(--text-muted)] mb-3" />
+             <p className="text-sm font-medium text-[var(--text-primary)] mb-4">How can I help with this note?</p>
+             <div className="flex flex-col gap-2 w-full">
                <button 
-                 onClick={() => ask('wiki', `Explain the core concepts of [[${pageTitle}]]`)}
-                 className="w-full py-2 border rounded-lg text-[10px] font-black uppercase tracking-widest hover:bg-white/5 transition-all"
+                 onClick={() => ask('wiki', `Summarize the contents of [[${pageTitle}]]`)}
+                 className="w-full py-1.5 px-3 bg-[var(--surface-2)] border border-[var(--border-subtle)] rounded text-xs text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--surface-3)] transition-colors text-left"
                >
-                 Explain concepts
+                 Summarize contents
                </button>
                <button 
-                 onClick={() => ask('wiki', `Identify potential gaps or contradictions in [[${pageTitle}]]`)}
-                 className="w-full py-2 border rounded-lg text-[10px] font-black uppercase tracking-widest hover:bg-white/5 transition-all"
+                 onClick={() => ask('wiki', `Suggest related topics for [[${pageTitle}]]`)}
+                 className="w-full py-1.5 px-3 bg-[var(--surface-2)] border border-[var(--border-subtle)] rounded text-xs text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--surface-3)] transition-colors text-left"
                >
-                 Find gaps
+                 Suggest related topics
                </button>
              </div>
           </div>
         )}
 
         {chatLog.map((msg, i) => (
-          <div key={i} className={`chat-bubble ${msg.role === 'user' ? 'user' : 'ai'} w-full max-w-[95%]`}>
-            {msg.role === 'ai' && <span className="ai-label">Neural Link</span>}
-            <div className="bubble-text">
+          <div key={i} className={`flex flex-col gap-1 w-full max-w-[95%] ${msg.role === 'user' ? 'self-end' : 'self-start'}`}>
+            {msg.role === 'ai' && <span className="text-xs font-semibold text-[var(--text-primary)]">Assistant</span>}
+            <div className={`text-sm px-3 py-2 rounded-lg ${
+              msg.role === 'user' 
+                ? 'bg-[var(--surface-3)] text-[var(--text-primary)] self-end' 
+                : 'text-[var(--text-secondary)] self-start'
+            }`}>
               {msg.text}
             </div>
             
             {msg.role === 'ai' && msg.meta && (
-              <div className="w-full space-y-2 mt-2">
+              <div className="w-full space-y-2 mt-1 pl-1">
                 {(msg.meta.citations || []).slice(0, 2).map((citation: any, idx: number) => (
                   <ChatCitationCard
                     key={`${citation.page_title}-${idx}`}
@@ -74,12 +75,10 @@ export function ChatSidebar({ pageTitle }: ChatSidebarProps) {
         ))}
 
         {chatLoading && (
-          <div className="chat-bubble ai">
-            <span className="ai-label">Neural Link</span>
-            <div className="bubble-text typing-dots flex items-center justify-center p-3">
-              <span />
-              <span />
-              <span />
+          <div className="flex flex-col gap-1 self-start w-full">
+            <span className="text-xs font-semibold text-[var(--text-primary)]">Assistant</span>
+            <div className="text-[var(--text-muted)] text-sm px-3 py-2">
+              Thinking...
             </div>
           </div>
         )}
@@ -87,20 +86,12 @@ export function ChatSidebar({ pageTitle }: ChatSidebarProps) {
         <div ref={chatEndRef} />
       </div>
 
-      {/* Input Area */}
-      <div className="p-6 border-t shrink-0 flex flex-col gap-3" style={{ borderColor: 'rgba(255,255,255,0.05)', background: 'var(--bg-800)' }}>
-        {/* Quick Context Chips */}
-        <div className="flex items-center gap-2 overflow-x-auto no-scrollbar pb-1">
-          <button onClick={() => ask('wiki', 'Summarize this page')} className="shrink-0 px-3 py-1.5 rounded-full bg-white/5 hover:bg-white/10 text-[10px] font-bold tracking-wide border border-white/5 transition-all text-[var(--text-secondary)]">Summarize</button>
-          <button onClick={() => ask('wiki', 'What are the main contradictions?')} className="shrink-0 px-3 py-1.5 rounded-full bg-white/5 hover:bg-white/10 text-[10px] font-bold tracking-wide border border-white/5 transition-all text-[var(--text-secondary)]">Find Contradictions</button>
-          <button onClick={() => ask('wiki', 'Suggest next research topics')} className="shrink-0 px-3 py-1.5 rounded-full bg-white/5 hover:bg-white/10 text-[10px] font-bold tracking-wide border border-white/5 transition-all text-[var(--text-secondary)]">Next Topics</button>
-        </div>
-
-        <div className="relative group">
+      <div className="p-4 border-t border-[var(--border-subtle)] bg-[var(--surface-1)]">
+        <div className="relative">
           <textarea
-            className="w-full pl-4 pr-12 py-3 bg-white/5 border border-white/10 rounded-xl outline-none focus:border-[var(--accent)]/50 focus:bg-white/[0.08] transition-all text-sm resize-none custom-scrollbar"
-            placeholder="Ask anything..."
-            rows={2}
+            className="w-full pl-3 pr-10 py-2 bg-[var(--surface-2)] border border-[var(--border-strong)] rounded-md outline-none focus:border-[var(--accent)] transition-colors text-sm resize-none custom-scrollbar text-[var(--text-primary)] placeholder-[var(--text-muted)]"
+            placeholder="Ask a question..."
+            rows={1}
             value={question}
             onChange={(e) => setQuestionForSurface('wiki', e.target.value)}
             onKeyDown={(e) => {
@@ -113,23 +104,20 @@ export function ChatSidebar({ pageTitle }: ChatSidebarProps) {
           <button 
             onClick={handleAsk}
             disabled={!question.trim() || chatLoading}
-            className="absolute right-3 bottom-3 p-2 rounded-lg bg-[var(--accent)] text-white shadow-lg disabled:opacity-30 transition-all hover:scale-105 active:scale-95"
+            className="absolute right-2 bottom-2 p-1 text-[var(--text-muted)] hover:text-[var(--text-primary)] disabled:opacity-30 transition-colors"
           >
             {chatLoading ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
           </button>
         </div>
         
-        <div className="flex items-center justify-between mt-3 px-1">
+        <div className="flex items-center justify-between mt-2 px-1">
            <button 
              onClick={() => clearConversation('wiki')}
-             className="text-[9px] font-black uppercase tracking-widest opacity-20 hover:opacity-100 flex items-center gap-1 transition-all"
+             className="text-xs text-[var(--text-muted)] hover:text-[var(--text-secondary)] flex items-center gap-1 transition-colors"
            >
               <Trash2 className="w-3 h-3" />
-              Reset Chain
+              Clear
            </button>
-           <span className="text-[9px] font-black uppercase tracking-widest opacity-10">
-              Neural Link v4.9
-           </span>
         </div>
       </div>
     </div>

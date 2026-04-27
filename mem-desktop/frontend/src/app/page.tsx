@@ -13,7 +13,10 @@ export default function RootPage() {
 
   return (
     <div className="flex h-screen w-screen items-center justify-center bg-bg-900">
-      <div className="spinner" />
+      <div className="text-sm font-mono text-text-muted flex items-center gap-3">
+        <div className="spinner" />
+        <span>Loading workspace...</span>
+      </div>
     </div>
   );
 }

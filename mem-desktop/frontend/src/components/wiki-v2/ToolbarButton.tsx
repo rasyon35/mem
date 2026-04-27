@@ -15,13 +15,13 @@ export function ToolbarButton({ icon: Icon, onClick, tooltip, active }: ToolbarB
         onClick();
       }}
       title={tooltip}
-      className={`w-9 h-9 rounded-xl transition-all flex items-center justify-center group relative border ${
+      className={`w-7 h-7 rounded flex items-center justify-center transition-all duration-150 active:scale-95 ${
         active 
-          ? 'bg-[var(--accent)] text-white border-[var(--accent)] shadow-[0_0_15px_-3px_var(--accent)]' 
-          : 'bg-transparent border-transparent hover:bg-white/5 text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:border-white/10'
+          ? 'bg-[var(--surface-3)] text-[var(--text-primary)] border border-[var(--border-strong)]' 
+          : 'bg-transparent hover:bg-[var(--surface-2)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] border border-transparent hover:border-[var(--border-subtle)]'
       }`}
     >
-      <Icon className={`w-4 h-4 transition-transform group-active:scale-90 ${active ? 'stroke-[2.5px]' : 'stroke-[1.5px]'}`} />
+      <Icon className="w-3.5 h-3.5" strokeWidth={active ? 2.5 : 2} />
     </button>
   );
 }

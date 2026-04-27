@@ -1,189 +1,328 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useEffect, useRef } from 'react';
+import { useRouter } from 'next/navigation';
 import {
   FileText,
-  Star,
-  ChevronDown,
+  ChevronLeft,
   Loader2,
   FolderOpen,
-  Wand2,
-  Circle,
-  Layout,
-  Plus,
   ArrowRight,
-  BookOpen,
-  Users,
-  Zap
+  Sparkles,
+  Search,
+  Clock,
 } from 'lucide-react';
 import { GoogleDocsEditor } from './GoogleDocsEditor';
-import { useTheme } from '@/context/ThemeContext';
+import { ZenChat } from './ZenChat';
+import { useWiki } from '@/context/WikiContext';
 import axios from 'axios';
 
 const API = 'http://localhost:8000/api';
-
-const STUDIO_TEMPLATES = [
-  { id: 'blank', label: 'Blank Node', icon: Circle },
-  {
-    id: 'research',
-    label: 'Research Paper',
-    icon: BookOpen,
-    markdown: ['## Abstract', '', '## Methodology', '', '## Findings', '', '## Conclusion'].join('\n'),
-  },
-  {
-    id: 'startup',
-    label: 'Startup Idea',
-    icon: Zap,
-    markdown: ['## Problem', '', '## Solution', '', '## Market', '', '## Business Model'].join('\n'),
-  },
-  {
-    id: 'meeting',
-    label: 'Meeting Notes',
-    icon: Users,
-    markdown: ['## Agenda', '- ', '', '## Action Items', '- [ ] '].join('\n'),
-  },
-];
 
 interface KnowledgeStudioProps {
   onCreated: (pageId: number) => void;
   onCancel: () => void;
   onOpenMarkdown?: () => void;
+  onSelectPage?: (pageId: number) => void;
 }
 
-export function KnowledgeStudio({ onCreated, onCancel, onOpenMarkdown }: KnowledgeStudioProps) {
-  const { theme } = useTheme();
+type Page = {
+  id?: number;
+  slug: string;
+  title: string;
+  updated_at?: string;
+};
+
+export function KnowledgeStudio({
+  onCreated,
+  onCancel,
+  onOpenMarkdown,
+  onSelectPage,
+}: KnowledgeStudioProps) {
+  const router = useRouter();
+  const { zenMode, setZenMode, wikiPages, fetchWikiPages } = useWiki();
+
   const [title, setTitle] = useState('');
-  const [slug, setSlug] = useState('');
-  const pageType = 'note';
-  const tags: string[] = [];
-  const [isFavorite, setIsFavorite] = useState(false);
   const [editorDraft, setEditorDraft] = useState('');
   const [isSaving, setIsSaving] = useState(false);
-  const [templateOpen, setTemplateOpen] = useState(false);
 
-  const autoSlug = useMemo(() => {
-    return title
-      .toLowerCase()
-      .replace(/[^a-z0-9]+/g, '-')
-      .replace(/^-+|-+$/g, '');
-  }, [title]);
+  const [showPageSelector, setShowPageSelector] = useState(false);
+  const [pageSearch, setPageSearch] = useState('');
 
-  const applyTemplate = (markdown: string) => {
-    setEditorDraft(markdown);
-    setTemplateOpen(false);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+
+  /* ─────────────────────────────────────────────
+     LOAD PAGES
+     ───────────────────────────────────────────── */
+  useEffect(() => {
+    fetchWikiPages();
+  }, [fetchWikiPages]);
+
+  /* ─────────────────────────────────────────────
+     CLOSE DROPDOWN ON OUTSIDE CLICK
+     ───────────────────────────────────────────── */
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (
+        dropdownRef.current &&
+        !dropdownRef.current.contains(event.target as Node)
+      ) {
+        setShowPageSelector(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+
+    return () =>
+      document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  /* ─────────────────────────────────────────────
+     FILTER PAGES
+     ───────────────────────────────────────────── */
+  const filteredPages = wikiPages.filter(
+    (p) =>
+      p.title.toLowerCase().includes(pageSearch.toLowerCase()) ||
+      p.slug.toLowerCase().includes(pageSearch.toLowerCase())
+  );
+
+  /* ─────────────────────────────────────────────
+     OPEN EXISTING PAGE
+     ───────────────────────────────────────────── */
+  const handleSelectPage = (page: Page) => {
+    setShowPageSelector(false);
+
+    if (onSelectPage && page.id) {
+      onSelectPage(page.id);
+      return;
+    }
+
+    const slug = page.slug || page.title;
+    router.push(`/dashboard/markdown?page=${encodeURIComponent(slug)}`);
   };
 
+  /* ─────────────────────────────────────────────
+     PUBLISH
+     ───────────────────────────────────────────── */
   const handlePublish = async () => {
     const cleanTitle = title.trim() || 'Untitled Note';
     const finalBody = editorDraft.trim();
 
+    if (!cleanTitle.trim()) return;
+
     setIsSaving(true);
+
     try {
-      // Direct ingestion to global knowledge
-      const res = await axios.post(`${API}/ingest/text`, {
+      await axios.post(`${API}/ingest/text`, {
         title: cleanTitle,
         text: finalBody,
         auto_approve: true,
       });
-      
-      // If the ingestion created a new page, we try to find its ID to open it
-      // Note: Backend process_text returns {status: 'applied', proposed_changes: {...}}
-      // We might need to wait for sync or use a temporary loading state
-      alert('Node published to global knowledge! AI is now synthesizing connections in the wiki.');
-      onCreated(-1); // Signal that we're done, -1 means "refresh and go to dashboard" or similar
-    } catch (e) {
-      console.error('Publish failed:', e);
+
+      onCreated(-1);
+    } catch (error) {
+      console.error('Publish failed:', error);
     } finally {
       setIsSaving(false);
     }
   };
 
-  const isDark = theme === 'dark';
-  const wordCount = editorDraft.trim() ? editorDraft.trim().split(/\s+/).length : 0;
+  /* ─────────────────────────────────────────────
+     DATE FORMATTER
+     ───────────────────────────────────────────── */
+  const formatDate = (dateStr?: string) => {
+    if (!dateStr) return '';
+
+    try {
+      return new Date(dateStr).toLocaleDateString(undefined, {
+        month: 'short',
+        day: 'numeric',
+        year: 'numeric',
+      });
+    } catch {
+      return '';
+    }
+  };
 
   return (
-    <div className="flex flex-col h-full overflow-hidden" style={{ background: 'var(--bg-950)' }}>
-      {/* Streamlined Studio Header */}
-      <div
-        className="flex flex-col border-b shrink-0 z-40 transition-all h-24"
-        style={{ borderColor: 'var(--border)', background: 'var(--bg-900)' }}
-      >
-        <div className="flex items-center justify-between px-10 h-full">
-          <div className="flex items-center gap-6">
+    <div
+      className={`flex flex-col h-full bg-[var(--bg-900)] ${
+        zenMode ? 'zen-active' : ''
+      }`}
+    >
+      {/* ─────────────────────────────────────────────
+          TOP BAR
+         ───────────────────────────────────────────── */}
+      <div className="flex items-center justify-center h-16 border-b border-[var(--border-subtle)] shrink-0 bg-[var(--surface-1)] overflow-visible">
+        <div className="flex items-center justify-between w-full max-w-4xl px-6">
+          {/* Left */}
+          <div className="flex items-center gap-4">
             <button
               onClick={onCancel}
-              className="p-2 rounded-xl hover:bg-white/5 transition-colors"
-              style={{ color: 'var(--text-muted)' }}
+              className="flex items-center gap-1.5 px-3 py-2 text-sm font-medium text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--surface-2)] transition-all duration-150"
             >
-              <ChevronDown className="w-5 h-5 rotate-90" />
+              <ChevronLeft className="w-4 h-4" />
+              Back
             </button>
-            
-            <div className="flex items-center gap-3">
-               <div className="w-8 h-8 rounded-lg bg-[var(--accent)] flex items-center justify-center shadow-[0_0_20px_-5px_var(--accent)]">
-                  <Layout className="w-4 h-4 text-white" />
-               </div>
-               <div>
-                  <span className="text-[10px] font-black uppercase tracking-[0.2em] opacity-30" style={{ color: 'var(--text-primary)' }}>New Node</span>
-                  <span className="text-xs font-black tracking-tight block" style={{ color: 'var(--text-primary)' }}>Knowledge Creator</span>
-               </div>
+
+            <div className="w-px h-5 bg-[var(--border-subtle)]" />
+
+            <div className="flex items-center gap-2">
+              <FileText className="w-4 h-4 text-[var(--accent-primary)]" />
+              <span className="text-sm font-semibold text-[var(--text-primary)]">
+                New Note
+              </span>
             </div>
           </div>
 
-          <div className="flex items-center gap-4">
-            <button
-              onClick={onOpenMarkdown}
-              className="flex items-center gap-2 px-4 py-2 text-[10px] font-black uppercase tracking-widest opacity-40 hover:opacity-100 transition-all"
-            >
-              <FolderOpen className="w-3.5 h-3.5" />
-              Explorer
-            </button>
+          {/* Right */}
+          <div className="flex items-center gap-3 relative">
+            {/* OPEN EXISTING */}
+            <div className="relative" ref={dropdownRef}>
+              <button
+                onClick={() => {
+                  if (onOpenMarkdown) {
+                    onOpenMarkdown();
+                  } else {
+                    setShowPageSelector(!showPageSelector);
+                  }
+                }}
+                className="flex items-center gap-1.5 px-3 py-2 text-sm font-medium text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--surface-2)] transition-all duration-150"
+              >
+                <FolderOpen className="w-4 h-4" />
+                Open Existing
+              </button>
 
+              {showPageSelector && (
+                <div className="absolute right-0 top-full mt-3 w-80 bg-[var(--surface-1)] border border-[var(--border-subtle)] shadow-2xl z-[100] overflow-hidden">
+                  {/* Search */}
+                  <div className="p-3 border-b border-[var(--border-subtle)]">
+                    <div className="relative">
+                      <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--text-muted)]" />
+                      <input
+                        type="text"
+                        placeholder="Search pages..."
+                        value={pageSearch}
+                        onChange={(e) => setPageSearch(e.target.value)}
+                        className="w-full bg-[var(--surface-2)] border border-[var(--border-subtle)] py-3 pl-10 pr-4 text-sm text-[var(--text-primary)] placeholder-[var(--text-muted)] outline-none focus:border-[var(--accent-primary)]"
+                        autoFocus
+                      />
+                    </div>
+                  </div>
+
+                  {/* Pages */}
+                  <div className="max-h-72 overflow-y-auto custom-scrollbar p-2">
+                    {filteredPages.length === 0 ? (
+                      <div className="py-8 text-center">
+                        <FileText className="w-8 h-8 text-[var(--text-muted)] mx-auto mb-2 opacity-40" />
+                        <p className="text-sm text-[var(--text-muted)]">
+                          No pages found
+                        </p>
+                      </div>
+                    ) : (
+                      filteredPages.map((page, index) => (
+                        <button
+                          key={page.slug || index}
+                          onClick={() => handleSelectPage(page)}
+                          className="w-full flex items-center gap-3 px-3 py-3 hover:bg-[var(--surface-2)] transition-all text-left group border border-transparent"
+                        >
+                          <div className="w-10 h-10 bg-[var(--surface-3)] border border-[var(--border-subtle)] flex items-center justify-center flex-shrink-0">
+                            <FileText className="w-5 h-5 text-[var(--text-muted)] group-hover:text-[var(--accent-primary)] transition-colors" />
+                          </div>
+
+                          <div className="flex-1 min-w-0">
+                            <div className="text-sm font-medium text-[var(--text-primary)] truncate">
+                              {page.title.replace(/_/g, ' ')}
+                            </div>
+
+                            {page.updated_at && (
+                              <div className="flex items-center gap-1 mt-0.5">
+                                <Clock className="w-3 h-3 text-[var(--text-muted)]" />
+                                <span className="text-xs text-[var(--text-muted)]">
+                                  {formatDate(page.updated_at)}
+                                </span>
+                              </div>
+                            )}
+                          </div>
+                        </button>
+                      ))
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* PUBLISH BUTTON — FULL THEME RESPONSIVE */}
             <button
               onClick={handlePublish}
-              className="group flex items-center gap-3 bg-[var(--accent)] text-white text-[11px] font-black uppercase tracking-widest px-8 py-3 rounded-xl shadow-[0_10px_20px_-5px_var(--accent)] hover:opacity-90 transition-all active:scale-95 disabled:opacity-50"
               disabled={isSaving || !title.trim()}
+              className="
+                flex items-center gap-2
+                px-4 py-2
+                text-sm font-semibold
+                border border-[var(--border-subtle)]
+                bg-[var(--accent-primary)]
+                ${theme === 'dark' ? 'text-white' : 'text-black'}
+                hover:opacity-90
+                disabled:opacity-50
+                transition-all duration-150
+              "
             >
-              {isSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Zap className="w-4 h-4 fill-current" />}
-              {isSaving ? 'Publishing...' : 'Publish to Knowledge'}
-              <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+              {isSaving ? (
+                <Loader2 className="w-4 h-4 animate-spin" />
+              ) : (
+                <ArrowRight className="w-4 h-4" />
+              )}
+
+              {isSaving ? 'Publishing...' : 'Publish'}
             </button>
           </div>
         </div>
       </div>
 
-      <div className="flex-1 flex flex-col min-h-0">
-        <div className="px-10 py-10">
-          <div className="max-w-none">
-            <input
-              className="w-full bg-transparent border-none outline-none text-5xl font-black tracking-tighter mb-4"
-              style={{ color: 'var(--text-primary)' }}
-              placeholder="Title..."
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              autoFocus
-            />
-            <div className="flex items-center gap-4">
-              <div className="flex items-center gap-3 px-4 py-2 rounded-xl bg-white/5 border border-white/5">
-                 <span className="text-[10px] font-black uppercase tracking-widest opacity-30">Word Count</span>
-                 <span className="text-[11px] font-bold text-[var(--text-primary)]">{wordCount} Units</span>
-              </div>
-              <div className="text-[10px] opacity-20 font-bold uppercase tracking-widest">
-                AI Ingestion will process this node into the global wiki
-              </div>
-            </div>
-          </div>
+      {/* ─────────────────────────────────────────────
+          TITLE + EDITOR
+         ───────────────────────────────────────────── */}
+      <div className="flex-1 flex flex-col min-h-0 overflow-hidden animate-fade-in">
+        {/* Title */}
+        <div className="w-full px-6 pt-8 pb-6 border-b border-[var(--border-subtle)] bg-[var(--surface-1)]">
+          <input
+            className="w-full bg-transparent border-none outline-none text-4xl font-bold tracking-tight mb-2 text-[var(--text-primary)] placeholder-[var(--text-muted)]"
+            placeholder="Untitled"
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
+            autoFocus
+          />
+
+          <p className="text-sm text-[var(--text-muted)]">
+            Write your thoughts, findings, or documentation below.
+          </p>
         </div>
 
-        <div className="flex-1 overflow-hidden">
-          <GoogleDocsEditor 
-            initialText={editorDraft} 
-            onChange={setEditorDraft} 
-            onSave={handlePublish} 
+        {/* Editor */}
+        <div className="flex-1 relative overflow-hidden">
+          <GoogleDocsEditor
+            initialText={editorDraft}
+            onChange={setEditorDraft}
+            onSave={handlePublish}
           />
         </div>
       </div>
+
+      {/* ─────────────────────────────────────────────
+          ZEN MODE
+         ───────────────────────────────────────────── */}
+      {zenMode && <ZenChat />}
+
+      {!zenMode && (
+        <button
+          className="zen-opener"
+          onClick={() => setZenMode(true)}
+          title="Enter Zen Synthesis"
+        >
+          <Sparkles className="w-6 h-6" />
+        </button>
+      )}
     </div>
   );
 }
-
-
