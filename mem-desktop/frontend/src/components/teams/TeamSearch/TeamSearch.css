@@ -1,0 +1,157 @@
+.team-search {
+  padding: 24px;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.search-header {
+  margin-bottom: 24px;
+}
+
+.search-header h2 {
+  font-size: 24px;
+  font-weight: 600;
+  color: #111827;
+  margin: 0 0 8px 0;
+}
+
+.search-description {
+  font-size: 14px;
+  color: #6B7280;
+  margin: 0;
+}
+
+.search-controls {
+  margin-bottom: 24px;
+}
+
+.scope-selector {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.scope-btn {
+  padding: 8px 16px;
+  background: white;
+  color: #374151;
+  border: 1px solid #D1D5DB;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 14px;
+}
+
+.scope-btn.active {
+  background: #4F46E5;
+  color: white;
+  border-color: #4F46E5;
+}
+
+.search-input-group {
+  display: flex;
+  gap: 12px;
+}
+
+.search-input {
+  flex: 1;
+  padding: 10px 16px;
+  border: 1px solid #D1D5DB;
+  border-radius: 8px;
+  font-size: 14px;
+}
+
+.search-btn {
+  padding: 10px 24px;
+  background: #4F46E5;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.search-btn:disabled {
+  background: #9CA3AF;
+  cursor: not-allowed;
+}
+
+.search-btn:hover:not(:disabled) {
+  background: #4338CA;
+}
+
+.search-results {
+  min-height: 300px;
+}
+
+.results-info {
+  font-size: 13px;
+  color: #6B7280;
+  margin-bottom: 16px;
+}
+
+.result-card {
+  background: white;
+  border: 1px solid #E5E7EB;
+  border-radius: 8px;
+  padding: 16px;
+  margin-bottom: 12px;
+  cursor: pointer;
+  transition: box-shadow 0.2s;
+}
+
+.result-card:hover {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.result-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.result-icon {
+  font-size: 16px;
+}
+
+.result-title {
+  flex: 1;
+  font-size: 16px;
+  font-weight: 600;
+  color: #111827;
+  margin: 0;
+}
+
+.result-type {
+  font-size: 10px;
+  padding: 2px 6px;
+  background: #E0E7FF;
+  color: #3730A3;
+  border-radius: 4px;
+  text-transform: uppercase;
+}
+
+.result-relevance {
+  font-size: 12px;
+  color: #6B7280;
+}
+
+.result-snippet {
+  font-size: 13px;
+  color: #6B7280;
+  line-height: 1.5;
+  margin: 0;
+}
+
+.loading {
+  text-align: center;
+  padding: 48px;
+  color: #6B7280;
+}
+
+.empty-state {
+  text-align: center;
+  padding: 48px;
+  color: #9CA3AF;
+}

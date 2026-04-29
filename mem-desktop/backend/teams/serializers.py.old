@@ -1,0 +1,347 @@
+from rest_framework import serializers
+from django.contrib.auth import get_user_model
+from .models import (
+    Team,
+    TeamMembership,
+    TeamInvite,
+    TeamPage,
+    TeamPageRevision,
+    TeamGraphNode,
+    TeamGraphLink,
+    TeamBranch,
+    TeamChatMessage,
+    TeamOnboarding,
+    TeamActivity,
+    TeamKnowledgeConflict,
+    TeamNotification,
+    TeamAuditLog,
+)
+
+User = get_user_model()
+
+
+class UserSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = User
+        fields = ["id", "username", "email"]
+        read_only_fields = ["id", "username", "email"]
+
+
+class TeamSerializer(serializers.ModelSerializer):
+    created_by = UserSerializer(read_only=True)
+    member_count = serializers.SerializerMethodField()
+    my_role = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Team
+        fields = [
+            "id",
+            "name",
+            "slug",
+            "description",
+            "category",
+            "visibility",
+            "icon",
+            "color",
+            "created_by",
+            "is_active",
+            "is_archived",
+            "member_count",
+            "my_role",
+            "created_at",
+            "updated_at",
+        ]
+        read_only_fields = ["id", "created_by", "created_at", "updated_at"]
+
+    def get_member_count(self, obj):
+        return obj.memberships.filter(is_active=True).count()
+
+    def get_my_role(self, obj):
+        request = self.context.get("request")
+        if request and request.user.is_authenticated:
+            membership = obj.memberships.filter(user=request.user, is_active=True).first()
+            if membership:
+                return membership.role
+        return None
+
+
+class TeamCreateSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Team
+        fields = [
+            "name",
+            "description",
+            "category",
+            "visibility",
+            "icon",
+            "color",
+        ]
+
+    def create(self, validated_data):
+        request = self.context.get("request")
+        team = Team.objects.create(**validated_data, created_by=request.user)
+        TeamMembership.objects.create(
+            team=team, user=request.user, role="owner"
+        )
+        TeamOnboarding.objects.create(team=team)
+        return team
+
+
+class TeamMembershipSerializer(serializers.ModelSerializer):
+    user = UserSerializer(read_only=True)
+    team = TeamSerializer(read_only=True)
+
+    class Meta:
+        model = TeamMembership
+        fields = [
+            "id",
+            "team",
+            "user",
+            "role",
+            "nickname",
+            "is_active",
+            "joined_at",
+            "last_accessed_at",
+        ]
+        read_only_fields = ["id", "joined_at", "last_accessed_at"]
+
+
+class TeamInviteSerializer(serializers.ModelSerializer):
+    invited_by = UserSerializer(read_only=True)
+    is_valid = serializers.BooleanField(read_only=True)
+
+    class Meta:
+        model = TeamInvite
+        fields = [
+            "id",
+            "team",
+            "invited_by",
+            "email",
+            "code",
+            "role",
+            "max_uses",
+            "uses",
+            "expires_at",
+            "is_valid",
+            "created_at",
+        ]
+        read_only_fields = ["id", "invited_by", "uses", "created_at"]
+
+
+class TeamPageSerializer(serializers.ModelSerializer):
+    created_by = UserSerializer(read_only=True)
+    current_editor = UserSerializer(read_only=True)
+
+    class Meta:
+        model = TeamPage
+        fields = [
+            "id",
+            "team",
+            "original_page",
+            "title",
+            "slug",
+            "icon",
+            "cover",
+            "page_type",
+            "publish_state",
+            "content",
+            "tags",
+            "description",
+            "is_pinned",
+            "is_archived",
+            "created_by",
+            "current_editor",
+            "version",
+            "created_at",
+            "updated_at",
+        ]
+        read_only_fields = [
+            "id",
+            "created_by",
+            "current_editor",
+            "version",
+            "created_at",
+            "updated_at",
+        ]
+
+
+class TeamPageRevisionSerializer(serializers.ModelSerializer):
+    author = UserSerializer(read_only=True)
+
+    class Meta:
+        model = TeamPageRevision
+        fields = ["id", "page", "snapshot_json", "summary", "author", "created_at"]
+        read_only_fields = ["id", "author", "created_at"]
+
+
+class TeamGraphNodeSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = TeamGraphNode
+        fields = [
+            "id",
+            "team",
+            "page",
+            "entity_type",
+            "entity_id",
+            "label",
+            "description",
+            "metadata",
+            "is_active",
+            "x",
+            "y",
+            "created_at",
+            "updated_at",
+        ]
+        read_only_fields = ["id", "created_at", "updated_at"]
+
+
+class TeamGraphLinkSerializer(serializers.ModelSerializer):
+    source = TeamGraphNodeSerializer(read_only=True)
+    target = TeamGraphNodeSerializer(read_only=True)
+
+    class Meta:
+        model = TeamGraphLink
+        fields = [
+            "id",
+            "team",
+            "source",
+            "target",
+            "label",
+            "link_type",
+            "metadata",
+            "created_at",
+        ]
+        read_only_fields = ["id", "created_at"]
+
+
+class TeamBranchSerializer(serializers.ModelSerializer):
+    creator = UserSerializer(read_only=True)
+    reviewers = UserSerializer(many=True, read_only=True)
+
+    class Meta:
+        model = TeamBranch
+        fields = [
+            "id",
+            "team",
+            "page",
+            "title",
+            "content",
+            "status",
+            "creator",
+            "reviewers",
+            "created_at",
+            "updated_at",
+        ]
+        read_only_fields = ["id", "creator", "created_at", "updated_at"]
+
+
+class TeamChatMessageSerializer(serializers.ModelSerializer):
+    user = UserSerializer(read_only=True)
+    mentioned_users = UserSerializer(many=True, read_only=True)
+
+    class Meta:
+        model = TeamChatMessage
+        fields = [
+            "id",
+            "team",
+            "user",
+            "content",
+            "metadata",
+            "is_ai_response",
+            "mentioned_users",
+            "created_at",
+        ]
+        read_only_fields = ["id", "user", "created_at"]
+
+
+class TeamOnboardingSerializer(serializers.ModelSerializer):
+    pinned_pages = TeamPageSerializer(many=True, read_only=True)
+
+    class Meta:
+        model = TeamOnboarding
+        fields = [
+            "id",
+            "team",
+            "welcome_message",
+            "pinned_pages",
+            "auto_assign_role",
+            "show_graph_on_join",
+            "require_intro",
+            "created_at",
+        ]
+        read_only_fields = ["id", "created_at"]
+
+
+class TeamActivitySerializer(serializers.ModelSerializer):
+    user = UserSerializer(read_only=True)
+
+    class Meta:
+        model = TeamActivity
+        fields = [
+            "id",
+            "team",
+            "user",
+            "action",
+            "target_type",
+            "target_id",
+            "metadata",
+            "created_at",
+        ]
+        read_only_fields = ["id", "created_at"]
+
+
+class TeamNotificationSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = TeamNotification
+        fields = [
+            "id",
+            "team",
+            "user",
+            "notification_type",
+            "title",
+            "message",
+            "link",
+            "is_read",
+            "created_at",
+        ]
+        read_only_fields = ["id", "created_at"]
+
+
+class TeamAuditLogSerializer(serializers.ModelSerializer):
+    user = UserSerializer(read_only=True)
+
+    class Meta:
+        model = TeamAuditLog
+        fields = [
+            "id",
+            "team",
+            "user",
+            "action",
+            "target_type",
+            "target_id",
+            "metadata",
+            "created_at",
+        ]
+        read_only_fields = ["id", "created_at"]
+
+
+class TeamKnowledgeConflictSerializer(serializers.ModelSerializer):
+    resolved_by = UserSerializer(read_only=True)
+
+    class Meta:
+        model = TeamKnowledgeConflict
+        fields = [
+            "id",
+            "team",
+            "node_a_type",
+            "node_a_id",
+            "node_b_type",
+            "node_b_id",
+            "description",
+            "status",
+            "resolution",
+            "resolved_by",
+            "created_at",
+            "resolved_at",
+        ]
+        read_only_fields = ["id", "resolved_by", "created_at", "resolved_at"]

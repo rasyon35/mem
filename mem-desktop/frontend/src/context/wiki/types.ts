@@ -41,6 +41,26 @@ export type ChatSurfaceState = {
   lastChatRequest: { question: string; mode: ChatMode; context: ChatContextPayload } | null;
 };
 
+// Graph Chatbot Context Types
+export type UserIntent = 'definition' | 'deep' | 'relationship' | 'navigation' | 'synthesis' | 'exploration';
+export type ContextDepth = 'quick' | 'standard' | 'deep_research';
+export interface ChatContextPacket {
+  node?: { node_id: string; node_name: string; node_type: string; summary?: string; direct_links: string[] };
+  wiki?: { current_page?: string; page_content: string; page_title: string; backlinks: { title: string }[]; forward_links: { title: string }[] };
+  graph?: { related_nodes: { id: string; name: string; edge_type: string }[]; hub_node?: string; edge_count: number };
+  synthesis?: { cross_wiki_insights: string; confidence: number };
+  intent: UserIntent;
+  depth: ContextDepth;
+  token_estimate: number;
+  sources_used: string[];
+};
+export type UIAction = 
+  | { type: 'open_wiki'; payload: { pageTitle: string } }
+  | { type: 'show_related'; payload: { nodeId: string } }
+  | { type: 'expand_depth'; payload: { depth: ContextDepth } }
+  | { type: 'find_path'; payload: { from: string; to: string } }
+  | { type: 'synthesize_hub'; payload: { hubTitle: string } };
+
 export type IngestResult = {
   status?: 'staged' | 'applied';
   error?: string;

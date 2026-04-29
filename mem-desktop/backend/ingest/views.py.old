@@ -1051,26 +1051,26 @@ def setup_activate(request):
     env_lines = []
     if env_path.exists():
         env_lines = env_path.read_text().splitlines()
-    
+
     new_lines = []
     found_license = False
     for line in env_lines:
         if line.startswith("MEMOS_LICENSE_KEY="):
             new_lines.append(f"MEMOS_LICENSE_KEY={license_key}")
             found_license = True
-        elif line.startswith("GROQ_API_KEY=") or line.startswith("MEMOS_SETUP_MODE="):
+        elif line.startswith("MEMOS_SETUP_MODE="):
             continue # Strip out old local configs
         else:
             new_lines.append(line)
 
     if not found_license:
         new_lines.append(f"MEMOS_LICENSE_KEY={license_key}")
-        
+
     env_path.write_text("\n".join(new_lines) + "\n")
-    
+
     # Reload settings
     settings.MEMOS_LICENSE_KEY = license_key
-    
+
     # Reload AI Client
     from .ai_client import MemosAIClient
     import ingest.ai_client as ac_module
@@ -1115,3 +1115,116 @@ def get_metrics_summary(request):
             pass
     return Response({"event_counts": counts}, status=200)
 
+
+
+# ---------------------------------------------------------------------------
+# Graph Chatbot Context Endpoints
+# ---------------------------------------------------------------------------
+@api_view(["POST"])
+def node_context(request):
+    """Get multi-layer context packet for a graph node or wiki page."""
+    node_id = request.data.get("node_id", "").strip()
+    page_title = request.data.get("page_title", "").strip()
+    depth = request.data.get("depth", "standard")
+
+    if not node_id and not page_title:
+        return Response({"error": "node_id or page_title required"}, status=400)
+
+    from .context_engine import build_context_packet, ChatContextPacket, ContextDepth
+    depth_enum = ContextDepth(depth) if depth in ["quick", "standard", "deep_research"] else ContextDepth.STANDARD
+
+    packet = build_context_packet(
+        question=request.data.get("question", ""),
+        node_id=node_id or None,
+        page_title=page_title or None,
+        wiki_dir=str(WORKSPACE_WIKI_DIR),
+        depth=depth_enum
+    )
+    return Response({"packet": packet.to_dict(), "intent": packet.intent.value, "depth": packet.depth.value})
+
+
+@api_view(["GET"])
+def related_nodes(request):
+    """Get related nodes for a given node."""
+    node_id = request.query_params.get("node_id")
+    if not node_id:
+        return Response({"error": "node_id required"}, status=400)
+
+    depth = int(request.query_params.get("depth", 2))
+    from .graph_service import GraphService
+    gs = GraphService()
+    graph_data = gs.build_graph(wiki_dir=str(WORKSPACE_WIKI_DIR), params={"focus": node_id, "depth": str(depth)})
+
+    nodes = {n['id']: n for n in graph_data.get('nodes', [])}
+    links = graph_data.get('links', [])
+    related = []
+    for link in links:
+        if link['source'] == node_id and link['target'] in nodes:
+            related.append({"id": link['target'], "name": nodes[link['target']].get('name'), "edge_type": link.get('type'), "weight": link.get('weight', 1)})
+        elif link['target'] == node_id and link['source'] in nodes:
+            related.append({"id": link['source'], "name": nodes[link['source']].get('name'), "edge_type": link.get('type'), "weight": link.get('weight', 1)})
+    related.sort(key=lambda x: x['weight'], reverse=True)
+    return Response({"node_id": node_id, "related": related[:20]})
+
+
+@api_view(["GET"])
+def path_between(request):
+    """Find path between two nodes."""
+    from_node = request.query_params.get("from")
+    to_node = request.query_params.get("to")
+    if not from_node or not to_node:
+        return Response({"error": "from and to required"}, status=400)
+
+    from .graph_service import GraphService
+    gs = GraphService()
+    graph_data = gs.build_graph(wiki_dir=str(WORKSPACE_WIKI_DIR), params={"focus": from_node, "depth": "5"})
+
+    nodes = {n['id']: n for n in graph_data.get('nodes', [])}
+    adj = {}
+    for link in graph_data.get('links', []):
+        s, t = link['source'], link['target']
+        if s not in adj: adj[s] = []
+        if t not in adj: adj[t] = []
+        adj[s].append(t)
+        adj[t].append(s)
+
+    from collections import deque
+    queue = deque([(from_node, [from_node])])
+    visited = {from_node}
+    while queue:
+        current, path = queue.popleft()
+        if current == to_node:
+            path_names = [nodes[n].get('name', n) for n in path if n in nodes]
+            return Response({"path": path, "path_names": path_names, "length": len(path) - 1})
+        for neighbor in adj.get(current, []):
+            if neighbor not in visited:
+                visited.add(neighbor)
+                queue.append((neighbor, path + [neighbor]))
+    return Response({"path": None, "message": "No path found"})
+
+
+@api_view(["POST"])
+def chat_with_context(request):
+    """Chat endpoint with explicit context packet."""
+    question = request.data.get("question", "").strip()
+    if not question:
+        return Response({"error": "question required"}, status=400)
+
+    from .context_engine import build_context_packet, build_context_string, ChatContextPacket, ContextDepth
+    depth_enum = ContextDepth(request.data.get("depth", "standard"))
+
+    packet = build_context_packet(
+        question=question,
+        node_id=request.data.get("node_context", "").strip() or None,
+        page_title=request.data.get("page_context", "").strip() or None,
+        wiki_dir=str(WORKSPACE_WIKI_DIR),
+        depth=depth_enum
+    )
+    context_str = build_context_string(packet)
+    answer = ai_client.answer_question(question, wiki_pages_content=context_str)
+    return Response({
+        "answer": answer,
+        "context_packet": packet.to_dict(),
+        "intent": packet.intent.value,
+        "depth": packet.depth.value
+    })

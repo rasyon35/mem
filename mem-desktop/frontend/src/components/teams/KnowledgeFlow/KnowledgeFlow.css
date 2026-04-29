@@ -1,0 +1,228 @@
+.knowledge-flow {
+  padding: 24px;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.flow-header {
+  margin-bottom: 24px;
+}
+
+.flow-header h2 {
+  font-size: 24px;
+  font-weight: 600;
+  color: #111827;
+  margin: 0 0 8px 0;
+}
+
+.flow-description {
+  font-size: 14px;
+  color: #6B7280;
+  margin: 0;
+}
+
+.flow-actions {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 32px;
+}
+
+.flow-btn {
+  padding: 10px 20px;
+  background: white;
+  color: #374151;
+  border: 1px solid #D1D5DB;
+  border-radius: 6px;
+  font-size: 14px;
+  cursor: pointer;
+  font-weight: 500;
+}
+
+.flow-btn.active {
+  background: #4F46E5;
+  color: white;
+  border-color: #4F46E5;
+}
+
+.flow-panel {
+  background: white;
+  border: 1px solid #E5E7EB;
+  border-radius: 8px;
+  padding: 24px;
+  margin-bottom: 32px;
+}
+
+.flow-panel h3 {
+  font-size: 18px;
+  font-weight: 600;
+  color: #111827;
+  margin: 0 0 12px 0;
+}
+
+.flow-info {
+  font-size: 14px;
+  color: #6B7280;
+  margin: 0 0 20px 0;
+  padding: 12px;
+  background: #F9FAFB;
+  border-radius: 6px;
+}
+
+.page-selection {
+  margin-bottom: 20px;
+}
+
+.page-selection h4 {
+  font-size: 14px;
+  font-weight: 600;
+  color: #374151;
+  margin: 0 0 12px 0;
+}
+
+.page-option {
+  padding: 10px 12px;
+  border: 1px solid #E5E7EB;
+  border-radius: 6px;
+  margin-bottom: 8px;
+  cursor: pointer;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  transition: all 0.2s;
+}
+
+.page-option:hover {
+  background: #F9FAFB;
+}
+
+.page-option.selected {
+  border-color: #4F46E5;
+  background: #EEF2FF;
+}
+
+.page-title {
+  font-size: 14px;
+  color: #111827;
+}
+
+.page-type {
+  font-size: 10px;
+  padding: 2px 6px;
+  background: #E0E7FF;
+  color: #3730A3;
+  border-radius: 4px;
+  text-transform: uppercase;
+}
+
+.action-btn {
+  padding: 10px 20px;
+  border: none;
+  border-radius: 6px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.action-btn:disabled {
+  background: #9CA3AF;
+  cursor: not-allowed;
+}
+
+.share-btn {
+  background: #4F46E5;
+  color: white;
+}
+
+.share-btn:hover:not(:disabled) {
+  background: #4338CA;
+}
+
+.fork-btn {
+  background: #10B981;
+  color: white;
+}
+
+.fork-btn:hover:not(:disabled) {
+  background: #059669;
+}
+
+.flow-diagram {
+  background: white;
+  border: 1px solid #E5E7EB;
+  border-radius: 8px;
+  padding: 24px;
+}
+
+.flow-diagram h3 {
+  font-size: 18px;
+  font-weight: 600;
+  color: #111827;
+  margin: 0 0 20px 0;
+}
+
+.diagram {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 24px;
+  margin-bottom: 20px;
+}
+
+.flow-box {
+  flex: 1;
+  max-width: 250px;
+  padding: 20px;
+  border-radius: 8px;
+  text-align: center;
+}
+
+.flow-box.personal {
+  background: #EEF2FF;
+  border: 2px solid #4F46E5;
+}
+
+.flow-box.team {
+  background: #D1FAE5;
+  border: 2px solid #10B981;
+}
+
+.flow-box h4 {
+  font-size: 16px;
+  font-weight: 600;
+  margin: 0 0 12px 0;
+}
+
+.flow-box.personal h4 {
+  color: #3730A3;
+}
+
+.flow-box.team h4 {
+  color: #065F46;
+}
+
+.flow-box p {
+  font-size: 13px;
+  margin: 6px 0;
+  color: #374151;
+}
+
+.flow-arrow {
+  font-size: 32px;
+  color: #6B7280;
+}
+
+.flow-explanation {
+  text-align: center;
+  padding-top: 16px;
+  border-top: 1px solid #E5E7EB;
+}
+
+.flow-explanation p {
+  font-size: 14px;
+  color: #374151;
+  margin: 4px 0;
+}
+
+.flow-explanation strong {
+  color: #111827;
+}

@@ -1,0 +1,161 @@
+.team-memory {
+  padding: 24px;
+  max-width: 1400px;
+  margin: 0 auto;
+}
+
+.team-memory-empty {
+  padding: 48px;
+  text-align: center;
+  color: #6B7280;
+}
+
+.memory-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 24px;
+  flex-wrap: wrap;
+  gap: 16px;
+}
+
+.memory-header h2 {
+  font-size: 24px;
+  font-weight: 600;
+  color: #111827;
+  margin: 0;
+}
+
+.memory-actions {
+  display: flex;
+  gap: 12px;
+}
+
+.filter-select {
+  padding: 8px 12px;
+  border: 1px solid #D1D5DB;
+  border-radius: 6px;
+  font-size: 14px;
+  background: white;
+}
+
+.refresh-btn {
+  padding: 8px 16px;
+  background: white;
+  color: #374151;
+  border: 1px solid #D1D5DB;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 14px;
+}
+
+.refresh-btn:hover {
+  background: #F9FAFB;
+}
+
+.memory-content {
+  min-height: 400px;
+}
+
+.memory-stats {
+  display: flex;
+  gap: 24px;
+  margin-bottom: 24px;
+  padding: 16px;
+  background: white;
+  border: 1px solid #E5E7EB;
+  border-radius: 8px;
+}
+
+.stat-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+}
+
+.stat-value {
+  font-size: 24px;
+  font-weight: 700;
+  color: #111827;
+}
+
+.stat-label {
+  font-size: 12px;
+  color: #6B7280;
+  text-transform: uppercase;
+}
+
+.memory-list {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.memory-card {
+  background: white;
+  border: 1px solid #E5E7EB;
+  border-radius: 8px;
+  padding: 16px;
+}
+
+.memory-header-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.memory-icon {
+  font-size: 20px;
+}
+
+.memory-type {
+  font-size: 10px;
+  padding: 2px 8px;
+  border-radius: 4px;
+  color: white;
+  text-transform: uppercase;
+  font-weight: 500;
+}
+
+.confidence-score {
+  margin-left: auto;
+  font-size: 12px;
+  padding: 2px 8px;
+  background: #F3F4F6;
+  border-radius: 4px;
+  color: #6B7280;
+}
+
+.memory-content {
+  margin-bottom: 12px;
+}
+
+.memory-content pre {
+  background: #F9FAFB;
+  padding: 12px;
+  border-radius: 6px;
+  font-size: 12px;
+  overflow-x: auto;
+  margin: 0;
+  white-space: pre-wrap;
+  word-wrap: break-word;
+}
+
+.memory-footer {
+  font-size: 12px;
+  color: #9CA3AF;
+}
+
+.loading {
+  text-align: center;
+  padding: 48px;
+  color: #6B7280;
+}
+
+.empty-state {
+  text-align: center;
+  padding: 48px;
+  color: #9CA3AF;
+}

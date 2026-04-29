@@ -1,0 +1,64 @@
+.workspace-switcher {
+  display: flex;
+  gap: 8px;
+  padding: 8px 16px;
+  border-bottom: 1px solid #E5E7EB;
+  background: white;
+  align-items: center;
+}
+
+.workspace-tabs {
+  display: flex;
+  gap: 4px;
+  align-items: center;
+}
+
+.tab {
+  padding: 6px 12px;
+  border-radius: 6px;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  font-size: 14px;
+  color: #4B5563;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  transition: all 0.2s;
+}
+
+.tab:hover {
+  background: #F3F4F6;
+}
+
+.tab.active {
+  background: #4F46E5;
+  color: white;
+}
+
+.tab-icon {
+  font-size: 16px;
+}
+
+.team-avatar {
+  width: 16px;
+  height: 16px;
+  border-radius: 4px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 10px;
+  font-weight: 600;
+  color: white;
+}
+
+.create-team-tab {
+  font-size: 18px;
+  color: #6B7280;
+  padding: 6px 10px;
+}
+
+.create-team-tab:hover {
+  color: #4F46E5;
+  background: #EEF2FF;
+}

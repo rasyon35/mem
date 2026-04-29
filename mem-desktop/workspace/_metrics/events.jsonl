@@ -161,3 +161,14 @@
 {"event": "chat_query_completed", "timestamp": 1777315759.421141, "payload": {"with_page_context": true, "question_len": 35, "surface": "main"}}
 {"event": "chat_answer_received", "timestamp": 1777315759.4319067, "payload": {"surface": "main", "mode": "wiki_page", "confidence": "high", "citations_count": 1}}
 {"event": "frontend_chat_completed", "timestamp": 1777315759.5286832, "payload": {"surface": "main", "with_page_context": true, "has_error": false}}
+{"event": "ingest_file_completed", "timestamp": 1777364266.89486, "payload": {"source_type": "file", "auto_approve": true, "has_error": true, "status": null}}
+{"event": "frontend_ingest_completed", "timestamp": 1777364267.2552674, "payload": {"source_type": "file", "has_error": true, "status": "unknown"}}
+{"event": "ingest_file_completed", "timestamp": 1777365374.3154755, "payload": {"source_type": "file", "auto_approve": true, "has_error": true, "status": null}}
+{"event": "file_ingested", "timestamp": 1777383513.6358433, "payload": {"filename": "sample.txt", "source_id": "1"}}
+{"event": "file_ingested", "timestamp": 1777383653.3963647, "payload": {"filename": "sample.txt", "source_id": "1"}}
+{"event": "file_ingested", "timestamp": 1777384320.9773529, "payload": {"filename": "sample.txt", "source_id": "1"}}
+{"event": "file_ingested", "timestamp": 1777384740.1805604, "payload": {"filename": "sample.txt", "source_id": "1"}}
+{"event": "file_ingested", "timestamp": 1777384922.1433327, "payload": {"filename": "sample.txt", "source_id": "1"}}
+{"event": "file_ingested", "timestamp": 1777384988.7612123, "payload": {"filename": "sample.txt", "source_id": "1"}}
+{"event": "file_ingested", "timestamp": 1777385110.8252363, "payload": {"filename": "sample.txt", "source_id": "1"}}
+{"event": "file_ingested", "timestamp": 1777385355.5836208, "payload": {"filename": "sample.txt", "source_id": "1"}}

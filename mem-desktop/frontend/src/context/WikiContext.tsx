@@ -1,6 +1,6 @@
 'use client';
 
-import React, { createContext, useContext, useState, useRef, useEffect } from 'react';
+import React, { createContext, useContext, useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import axios from 'axios';
 
 const API = 'http://localhost:8000/api';
@@ -169,7 +169,13 @@ interface WikiContextType {
   setWikiSidebarOpen: (v: boolean) => void;
 }
 
+interface WikiPagesContextType {
+  wikiPages: any[];
+  fetchWikiPages: () => Promise<void>;
+}
+
 const WikiContext = createContext<WikiContextType | undefined>(undefined);
+const WikiPagesContext = createContext<WikiPagesContextType | undefined>(undefined);
 
 export const WikiProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [file, setFile] = useState<File | null>(null);
@@ -443,7 +449,7 @@ export const WikiProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
 
-  const fetchWikiPages = async () => {
+  const fetchWikiPages = useCallback(async () => {
     try {
       const res = await axios.get(`${API}/wiki/markdown-files`);
       const pages = (res.data.pages || []).map((p: any) => ({
@@ -453,7 +459,7 @@ export const WikiProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }));
       setWikiPages(pages);
     } catch { /* ignore */ }
-  };
+  }, []);
 
   const fetchHistory = async (pageTitle?: string) => {
     try {
@@ -713,32 +719,48 @@ export const WikiProvider: React.FC<{ children: React.ReactNode }> = ({ children
     chatEndRef: getChatEndRef(surface),
   });
 
+  const wikiPagesValue = useMemo(
+    () => ({
+      wikiPages,
+      fetchWikiPages,
+    }),
+    [wikiPages, fetchWikiPages]
+  );
+
   return (
-    <WikiContext.Provider value={{
-      file, setFile, url, setUrl, autoApprove, setAutoApprove, loading, result, setResult, handleIngest, handleApprove,
-      question, setQuestion, chatLog, chatMetaLog, chatMode, chatContext, chatLoading, chatEndRef, handleChat, ask, retry, clearConversation, setContext, getChatState, setQuestionForSurface,
-      wikiPages, fetchWikiPages,
-      gitHistory, fetchHistory, handleRevert,
-      pullRequests, fetchPullRequests, approvePullRequest,
-      contradictions, fetchContradictions, resolveContradiction, criticalPages, newCritical, setNewCritical, addCritical, removeCritical,
-      syncStatus, team, hubMode, setHubMode, remoteUrl, setRemoteUrl, conflicts, handleSync, fetchConflicts,
-      modalDiff, setModalDiff, mergeModalOpen, setMergeModalOpen,
-      presence, trackActivity, fetchPresence,
-      locks, fetchLocks, handleLock, handleUnlock,
-      graphData, graphStats, graphMeta, graphLoading, graphError, fetchGraphData, trackMetricEvent,
-      suggestedLinks, suggestionsLoading, fetchSuggestions,
-      runLint, lintRuns, lintFindings, remediationTasks, fetchLintFindings, fetchRemediationTasks, updateRemediationTask,
-      fetchQueryArtifacts, queryArtifacts, undoQueryArtifact,
-      zenMode, setZenMode,
-      wikiSidebarOpen, setWikiSidebarOpen
-    }}>
-      {children}
-    </WikiContext.Provider>
+    <WikiPagesContext.Provider value={wikiPagesValue}>
+      <WikiContext.Provider value={{
+        file, setFile, url, setUrl, autoApprove, setAutoApprove, loading, result, setResult, handleIngest, handleApprove,
+        question, setQuestion, chatLog, chatMetaLog, chatMode, chatContext, chatLoading, chatEndRef, handleChat, ask, retry, clearConversation, setContext, getChatState, setQuestionForSurface,
+        wikiPages, fetchWikiPages,
+        gitHistory, fetchHistory, handleRevert,
+        pullRequests, fetchPullRequests, approvePullRequest,
+        contradictions, fetchContradictions, resolveContradiction, criticalPages, newCritical, setNewCritical, addCritical, removeCritical,
+        syncStatus, team, hubMode, setHubMode, remoteUrl, setRemoteUrl, conflicts, handleSync, fetchConflicts,
+        modalDiff, setModalDiff, mergeModalOpen, setMergeModalOpen,
+        presence, trackActivity, fetchPresence,
+        locks, fetchLocks, handleLock, handleUnlock,
+        graphData, graphStats, graphMeta, graphLoading, graphError, fetchGraphData, trackMetricEvent,
+        suggestedLinks, suggestionsLoading, fetchSuggestions,
+        runLint, lintRuns, lintFindings, remediationTasks, fetchLintFindings, fetchRemediationTasks, updateRemediationTask,
+        fetchQueryArtifacts, queryArtifacts, undoQueryArtifact,
+        zenMode, setZenMode,
+        wikiSidebarOpen, setWikiSidebarOpen
+      }}>
+        {children}
+      </WikiContext.Provider>
+    </WikiPagesContext.Provider>
   );
 };
 
 export const useWiki = () => {
   const context = useContext(WikiContext);
   if (context === undefined) throw new Error('useWiki must be used within a WikiProvider');
+  return context;
+};
+
+export const useWikiPages = () => {
+  const context = useContext(WikiPagesContext);
+  if (context === undefined) throw new Error('useWikiPages must be used within a WikiProvider');
   return context;
 };
