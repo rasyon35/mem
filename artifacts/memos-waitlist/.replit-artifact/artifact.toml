@@ -1,0 +1,31 @@
+kind = "web"
+previewPath = "/"
+title = "MemOS Waitlist"
+version = "1.0.0"
+id = "artifacts/memos-waitlist"
+router = "path"
+
+[[integratedSkills]]
+name = "react-vite"
+version = "1.0.0"
+
+[[services]]
+name = "web"
+paths = [ "/" ]
+localPort = 18415
+
+[services.development]
+run = "pnpm --filter @workspace/memos-waitlist run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/memos-waitlist", "run", "build" ]
+publicDir = "artifacts/memos-waitlist/dist/public"
+serve = "static"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "18415"
+BASE_PATH = "/"

@@ -1,27 +1,32 @@
-# Workspace
+# MemOS Waitlist
+
+A waitlist landing page for MemOS — an AI-powered "living wiki" that evolves company knowledge through Git-style version control and human-reviewed AI updates.
 
 ## Overview
 
-pnpm workspace monorepo using TypeScript. Each package manages its own dependencies.
+This project was imported from a Vercel/v0 Next.js codebase and ported to Replit's pnpm monorepo as a Vite + React app.
 
-## Stack
+## Structure
 
-- **Monorepo tool**: pnpm workspaces
-- **Node.js version**: 24
-- **Package manager**: pnpm
-- **TypeScript version**: 5.9
-- **API framework**: Express 5
-- **Database**: PostgreSQL + Drizzle ORM
-- **Validation**: Zod (`zod/v4`), `drizzle-zod`
-- **API codegen**: Orval (from OpenAPI spec)
-- **Build**: esbuild (CJS bundle)
+- `artifacts/memos-waitlist/` — the React + Vite frontend artifact (single-page landing site).
+- `artifacts/api-server/` — pre-existing Express scaffold (currently unused; the waitlist has no backend).
+- `artifacts/mockup-sandbox/` — pre-existing component preview sandbox (unused by this app).
+- `lib/` — pre-existing shared packages (api-spec, api-client-react, db). Not used by this site yet.
 
-## Key Commands
+## Tech
 
-- `pnpm run typecheck` — full typecheck across all packages
-- `pnpm run build` — typecheck + build all packages
-- `pnpm --filter @workspace/api-spec run codegen` — regenerate API hooks and Zod schemas from OpenAPI spec
-- `pnpm --filter @workspace/db run push` — push DB schema changes (dev only)
-- `pnpm --filter @workspace/api-server run dev` — run API server locally
+- React 19 + Vite (TypeScript)
+- Plain CSS Modules + global CSS variables (no Tailwind, matching the original)
+- Inter + Outfit fonts loaded from Google Fonts via `<link>` in `index.html`
 
-See the `pnpm-workspace` skill for workspace structure, TypeScript setup, and package details.
+## Migration notes (from Next.js)
+
+- `src/app/layout.tsx` → metadata moved to `index.html`; `<html>` wrapper replaced by `App.tsx` + `main.tsx`.
+- `src/app/page.tsx` → `src/App.tsx` (renders all sections directly; no router needed for this single page).
+- `next/font/google` → standard `<link>` tag for Google Fonts; CSS variables (`--font-inter`, `--font-outfit`) preserved.
+- All `"use client"` directives removed (Vite is fully client-rendered).
+- `@/` import alias preserved via `vite.config.ts` and `tsconfig.json`.
+
+## Running
+
+The app runs via the workflow `artifacts/memos-waitlist: web`. Do not run `pnpm dev` at the workspace root.
