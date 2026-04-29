@@ -22,7 +22,13 @@ load_dotenv(BASE_DIR / '.env')
 
 # Groq LLM settings
 GROQ_API_KEY = os.getenv('GROQ_API_KEY', '')
-GROQ_MODEL = os.getenv('GROQ_MODEL', 'mixtral-8x7b-32768')
+GROQ_MODEL = os.getenv('GROQ_MODEL', 'llama-3.1-8b-instant')
+
+# Venice AI settings (preferred if available)
+VENICE_API_KEY = os.getenv('VENICE_API_KEY', '')
+VENICE_MODEL = os.getenv('VENICE_MODEL', 'venice-uncensored')
+VENICE_GATEWAY = os.getenv('VENICE_GATEWAY', 'https://api.venice.ai/api/v1/chat/completions')
+
 MEMOS_LICENSE_KEY = os.getenv('MEMOS_LICENSE_KEY', '')
 
 
@@ -55,6 +61,7 @@ INSTALLED_APPS = [
     'core',
     'ingest',
     'knowledge',
+    'teams',
 ]
 
 MIDDLEWARE = [

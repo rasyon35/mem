@@ -1,0 +1,202 @@
+.team-branches {
+  padding: 24px;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.team-branches-empty {
+  padding: 48px;
+  text-align: center;
+  color: #6B7280;
+}
+
+.branches-header {
+  margin-bottom: 24px;
+}
+
+.branches-header h2 {
+  font-size: 24px;
+  font-weight: 600;
+  color: #111827;
+  margin: 0 0 8px 0;
+}
+
+.branches-description {
+  font-size: 14px;
+  color: #6B7280;
+  margin: 0 0 16px 0;
+}
+
+.create-btn {
+  padding: 8px 16px;
+  background: #4F46E5;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  font-size: 14px;
+  cursor: pointer;
+  font-weight: 500;
+}
+
+.create-btn:hover {
+  background: #4338CA;
+}
+
+.branches-list {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.branch-card {
+  background: white;
+  border: 1px solid #E5E7EB;
+  border-radius: 8px;
+  padding: 16px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.branch-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 8px;
+}
+
+.branch-name {
+  font-size: 16px;
+  font-weight: 600;
+  color: #111827;
+  margin: 0;
+}
+
+.branch-status {
+  font-size: 10px;
+  padding: 2px 8px;
+  border-radius: 4px;
+  color: white;
+  text-transform: uppercase;
+  font-weight: 500;
+}
+
+.branch-meta {
+  display: flex;
+  gap: 16px;
+  font-size: 12px;
+  color: #6B7280;
+}
+
+.merge-btn {
+  padding: 6px 12px;
+  background: #10B981;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  font-size: 13px;
+  cursor: pointer;
+  font-weight: 500;
+}
+
+.merge-btn:hover {
+  background: #059669;
+}
+
+.loading {
+  text-align: center;
+  padding: 48px;
+  color: #6B7280;
+}
+
+.empty-state {
+  text-align: center;
+  padding: 48px;
+  color: #9CA3AF;
+}
+
+/* Modal Styles */
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.modal-content {
+  background: white;
+  border-radius: 8px;
+  padding: 24px;
+  width: 90%;
+  max-width: 500px;
+}
+
+.modal-content h3 {
+  margin: 0 0 20px 0;
+  font-size: 18px;
+  color: #111827;
+}
+
+.form-group {
+  margin-bottom: 16px;
+}
+
+.form-group label {
+  display: block;
+  font-size: 14px;
+  font-weight: 500;
+  color: #374151;
+  margin-bottom: 6px;
+}
+
+.form-group input {
+  width: 100%;
+  padding: 8px 12px;
+  border: 1px solid #D1D5DB;
+  border-radius: 6px;
+  font-size: 14px;
+  box-sizing: border-box;
+}
+
+.modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  margin-top: 20px;
+}
+
+.cancel-btn {
+  padding: 8px 16px;
+  background: white;
+  color: #374151;
+  border: 1px solid #D1D5DB;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 14px;
+}
+
+.submit-btn {
+  padding: 8px 16px;
+  background: #4F46E5;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.submit-btn:disabled {
+  background: #9CA3AF;
+  cursor: not-allowed;
+}
+
+.submit-btn:hover:not(:disabled) {
+  background: #4338CA;
+}

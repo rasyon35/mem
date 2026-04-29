@@ -588,8 +588,10 @@ def recent_pages(request):
 
 @api_view(["GET"])
 def knowledge_graph(request):
-    sync_wiki_to_db()
-    pages = list(WorkspacePage.objects.filter(status="active"))
+    # Only include manually ingested pages, NOT chat-generated analysis
+    pages = list(WorkspacePage.objects.filter(status="active").exclude(page_type="analysis").exclude(slug__startswith="analysis-"))
+    
+    # Auto-assign topics only for manual pages
     for page in pages:
         if not page.topic_id:
             first_block = page.blocks.order_by("order_index").first()
@@ -597,67 +599,112 @@ def knowledge_graph(request):
             if first_block and isinstance(first_block.content_json, dict):
                 sample_text = str(first_block.content_json.get("text", ""))
             _assign_topic_if_missing(page, text=sample_text)
-    links = list(PageLink.objects.select_related("from_page", "to_page"))
-    degree = {p.slug: 0 for p in pages}
-    edge_payload = []
-    for link in links:
-        source = link.from_page.slug
-        target = link.to_page.slug
-        degree[source] = degree.get(source, 0) + 1
-        degree[target] = degree.get(target, 0) + 1
-        edge_payload.append({"source": source, "target": target, "type": "wikilink"})
-
-    # Add lightweight inferred relationships by shared topic/subtopic/tags.
-    # This makes the graph useful even before many explicit wikilinks exist.
+    
+    # Build lesson-map: hierarchical tree by topic -> subtopic -> pages
     pages_by_topic = defaultdict(list)
     pages_by_subtopic = defaultdict(list)
     pages_by_tag = defaultdict(list)
+    
     for page in pages:
-        if page.topic_id:
-            pages_by_topic[page.topic_id].append(page)
-        if page.subtopic_id:
-            pages_by_subtopic[page.subtopic_id].append(page)
+        topic_key = page.topic.name if page.topic else _infer_category(page)
+        pages_by_topic[topic_key].append(page)
+        
+        subtopic_key = page.subtopic.name if page.subtopic else None
+        if subtopic_key:
+            pages_by_subtopic[subtopic_key].append(page)
+        
         for tag in (page.tags or []):
             tag_key = str(tag).strip().lower()
             if tag_key:
                 pages_by_tag[tag_key].append(page)
-
-    def _add_inferred(grouped_pages, relation_type):
-        for _, grouped in grouped_pages.items():
-            if len(grouped) < 2:
-                continue
-            for idx in range(len(grouped)):
-                for jdx in range(idx + 1, len(grouped)):
-                    source = grouped[idx].slug
-                    target = grouped[jdx].slug
-                    degree[source] = degree.get(source, 0) + 1
-                    degree[target] = degree.get(target, 0) + 1
-                    edge_payload.append({"source": source, "target": target, "type": relation_type})
-
-    _add_inferred(pages_by_topic, "topic_relation")
-    _add_inferred(pages_by_subtopic, "subtopic_relation")
-    _add_inferred(pages_by_tag, "tag_relation")
-
-    # Add semantic title-overlap relationships for disconnected graphs.
-    # This is a lightweight fallback when explicit wikilinks are sparse.
+    
+    degree = {p.slug: 0 for p in pages}
+    edge_payload = []
+    seen_edges = set()
+    
+    def _add_edge(source: str, target: str, edge_type: str):
+        key = tuple(sorted([source, target]))
+        if key not in seen_edges:
+            seen_edges.add(key)
+            edge_payload.append({"source": source, "target": target, "type": edge_type})
+            degree[source] = degree.get(source, 0) + 1
+            degree[target] = degree.get(target, 0) + 1
+    
+    # 1. Explicit wikilinks (from PageLink model)
+    links = list(PageLink.objects.select_related("from_page", "to_page").filter(
+        from_page__status="active", to_page__status="active"
+    ).exclude(from_page__page_type="analysis").exclude(to_page__page_type="analysis").exclude(from_page__slug__startswith="analysis-").exclude(to_page__slug__startswith="analysis-"))
+    
+    for link in links:
+        _add_edge(link.from_page.slug, link.to_page.slug, "wikilink")
+    
+    # 2. Topic hierarchy: root topic -> subtopic -> pages (lesson-map style)
+    for topic_name, topic_pages in pages_by_topic.items():
+        for page in topic_pages:
+            # Topic is parent of all its pages
+            topic_node = f"__topic__{topic_name}"
+            _add_edge(page.slug, topic_node, "topic_member")
+            
+            # If page has subtopic, connect through subtopic
+            if page.subtopic:
+                subtopic_node = f"__subtopic__{page.subtopic.name}"
+                _add_edge(page.slug, subtopic_node, "subtopic_member")
+    
+    # 3. Same subtopic creates connection
+    for subtopic_name, subtopic_pages in pages_by_subtopic.items():
+        for i in range(len(subtopic_pages)):
+            for j in range(i + 1, len(subtopic_pages)):
+                _add_edge(subtopic_pages[i].slug, subtopic_pages[j].slug, "subtopic_neighbor")
+    
+    # 4. Shared tags create connections
+    for tag_key, tag_pages in pages_by_tag.items():
+        if len(tag_pages) >= 2:
+            for i in range(len(tag_pages)):
+                for j in range(i + 1, len(tag_pages)):
+                    _add_edge(tag_pages[i].slug, tag_pages[j].slug, "tag_connection")
+    
+    # 5. Semantic title overlap (weaker connection)
     def _tokenize(value: str):
         return {t for t in re.findall(r"[a-z0-9]+", (value or "").lower()) if len(t) > 2}
-
-    semantic_edges = set()
+    
     title_tokens = {p.slug: _tokenize(p.title) for p in pages}
-    for idx in range(len(pages)):
-        for jdx in range(idx + 1, len(pages)):
-            p1 = pages[idx]
-            p2 = pages[jdx]
-            overlap = title_tokens.get(p1.slug, set()) & title_tokens.get(p2.slug, set())
+    for i in range(len(pages)):
+        for j in range(i + 1, len(pages)):
+            p1, p2 = pages[i], pages[j]
+            overlap = title_tokens[p1.slug] & title_tokens[p2.slug]
             if len(overlap) >= 2:
-                key = tuple(sorted([p1.slug, p2.slug]))
-                if key in semantic_edges:
-                    continue
-                semantic_edges.add(key)
-                degree[p1.slug] = degree.get(p1.slug, 0) + 1
-                degree[p2.slug] = degree.get(p2.slug, 0) + 1
-                edge_payload.append({"source": p1.slug, "target": p2.slug, "type": "semantic_relation"})
+                _add_edge(p1.slug, p2.slug, "semantic_relation")
+
+    # Auto-categorize pages based on title keywords when topic not set
+    def _infer_category(page: WorkspacePage) -> str:
+        if page.topic_id:
+            return page.topic.name
+        title_lower = page.title.lower()
+        tags = page.tags or []
+        
+        # Check tags first
+        for tag in tags:
+            tag_str = str(tag).lower()
+            if tag_str in ['physics', 'math', 'history', ' geography', 'django', 'ai', 'ml', 'science']:
+                return tag_str.title()
+        
+        # Infer from title keywords
+        keywords = {
+            'Physics': ['physics', 'force', 'energy', 'quantum', 'gravity', 'thermodynamic', 'wave', 'particle'],
+            'Mathematics': ['math', 'matrix', 'vector', 'eigenvalue', 'gradient', 'calculus', 'algebra', 'linear', 'tensor'],
+            'History': ['history', 'ancient', 'modern', 'classical', 'renaissance', 'revolution', 'civilization'],
+            'Geography': ['geography', 'geo', 'map', 'continent', 'region', 'climate', 'physical features'],
+            'AI/ML': ['ai', 'machine learning', 'ml', 'neural', 'model', 'training', 'transformer', 'deep learning'],
+            'Django': ['django', 'python', 'web', 'framework', 'backend', 'rest', 'api'],
+            'Science': ['science', 'scientific', 'experiment', 'observation', 'hypothesis'],
+            'Tools': ['tool', 'equipment', 'gps', 'satellite', 'software'],
+        }
+        
+        for category, words in keywords.items():
+            if any(w in title_lower for w in words):
+                return category
+        
+        return "Knowledge"
 
     nodes = []
     for page in pages:
@@ -665,19 +712,46 @@ def knowledge_graph(request):
         summary = ""
         if first_block and isinstance(first_block.content_json, dict):
             summary = str(first_block.content_json.get("text", ""))[:220]
+        
+        inferred_topic = _infer_category(page)
+        
         nodes.append(
             {
                 "id": page.slug,
                 "name": page.title,
-                "type": "knowledge",
+                "type": page.page_type or "knowledge",
                 "summary": summary,
                 "degree": degree.get(page.slug, 0),
                 "is_hub": degree.get(page.slug, 0) >= 3,
-                "topic": page.topic.name if page.topic else "Uncategorized",
+                "topic": inferred_topic,
+                "category": inferred_topic,
                 "subtopic": page.subtopic.name if page.subtopic else "",
                 "tags": page.tags or [],
             }
         )
+    
+    # Add topic nodes for lesson-map visualization
+    topic_nodes = set()
+    for link in edge_payload:
+        if link["type"] == "topic_member":
+            # Extract topic from "__topic__Physics" -> "Physics"
+            if link["source"].startswith("__topic__"):
+                topic_nodes.add(link["source"])
+    
+    for topic_id in topic_nodes:
+        topic_name = topic_id.replace("__topic__", "")
+        nodes.append({
+            "id": topic_id,
+            "name": topic_name,
+            "type": "topic",
+            "summary": f"All {topic_name} concepts",
+            "degree": 0,
+            "is_hub": False,
+            "topic": topic_name,
+            "category": topic_name,
+            "subtopic": "",
+            "tags": [],
+        })
 
     return Response(
         {
@@ -690,7 +764,7 @@ def knowledge_graph(request):
                 "hub_count": len([n for n in nodes if n.get("is_hub")]),
                 "orphan_count": len([n for n in nodes if n.get("degree", 0) == 0]),
             },
-            "meta": {"source": "knowledge", "revision": "v2"},
+            "meta": {"source": "knowledge", "revision": "v3"},
         }
     )
 

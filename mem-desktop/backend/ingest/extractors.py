@@ -101,22 +101,29 @@ class TextExtractor:
         """Main entry point – detects type and extracts text"""
         # If it's a URL
         if str(file_path_or_url).startswith(('http://', 'https://')):
-            return TextExtractor.from_url(file_path_or_url), 'url'
+            text = TextExtractor.from_url(file_path_or_url)
+            return text, {'source_type': 'url', 'mime_type': 'text/html'}
 
         path = Path(file_path_or_url)
         suffix = path.suffix.lower()
 
         if suffix == '.pdf':
-            return TextExtractor.from_pdf(path), 'pdf'
+            text = TextExtractor.from_pdf(path)
+            return text, {'source_type': 'pdf', 'mime_type': 'application/pdf'}
         elif suffix == '.docx':
-            return TextExtractor.from_docx(path), 'docx'
+            text = TextExtractor.from_docx(path)
+            return text, {'source_type': 'docx', 'mime_type': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'}
         elif suffix == '.md':
-            return TextExtractor.from_markdown(path), 'markdown'
+            text = TextExtractor.from_markdown(path)
+            return text, {'source_type': 'markdown', 'mime_type': 'text/markdown'}
         elif suffix == '.txt':
-            return TextExtractor.from_txt(path), 'text'
+            text = TextExtractor.from_txt(path)
+            return text, {'source_type': 'text', 'mime_type': 'text/plain'}
         elif suffix in ['.html', '.htm']:
-            return TextExtractor.from_html(path), 'html'
+            text = TextExtractor.from_html(path)
+            return text, {'source_type': 'html', 'mime_type': 'text/html'}
         elif suffix in ['.png', '.jpg', '.jpeg', '.webp', '.tiff', '.bmp']:
-            return TextExtractor.from_image(path), 'image'
+            text = TextExtractor.from_image(path)
+            return text, {'source_type': 'image', 'mime_type': f'image/{suffix[1:]}'}
         else:
             raise ValueError(f"Unsupported file type: {suffix}")

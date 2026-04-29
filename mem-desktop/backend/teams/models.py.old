@@ -1,0 +1,341 @@
+from django.db import models
+from django.contrib.auth import get_user_model
+from django.utils import timezone
+import uuid
+import secrets
+
+User = get_user_model()
+
+
+class TeamCategory(models.TextChoices):
+    STARTUP = "startup", "Startup"
+    RESEARCH = "research", "Research"
+    STUDY_GROUP = "study_group", "Study Group"
+    FAMILY = "family", "Family"
+    OPERATIONS = "operations", "Operations"
+    CUSTOM = "custom", "Custom"
+
+
+class TeamVisibility(models.TextChoices):
+    PRIVATE = "private", "Private (Invite Only)"
+    LINK_ACCESS = "link_access", "Link Access"
+    DISCOVERABLE = "discoverable", "Discoverable"
+
+
+class TeamRole(models.TextChoices):
+    OWNER = "owner", "Owner"
+    EDITOR = "editor", "Editor"
+    VIEWER = "viewer", "Viewer"
+
+
+class TeamPageType(models.TextChoices):
+    STANDARD = "standard", "Standard Page"
+    SHARED_SOP = "shared_sop", "Shared SOP"
+    DECISION = "decision", "Decision Page"
+    KNOWLEDGE_NODE = "knowledge_node", "Knowledge Node"
+    MEETING_SYNTHESIS = "meeting_synthesis", "Meeting Synthesis"
+
+
+class PublishState(models.TextChoices):
+    DRAFT = "draft", "Draft"
+    TEAM_SHARED = "team_shared", "Team Shared"
+    CANONICAL = "canonical", "Canonical Team Page"
+
+
+class Team(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    name = models.CharField(max_length=120)
+    slug = models.SlugField(max_length=140, unique=True)
+    description = models.TextField(blank=True, default="")
+    category = models.CharField(
+        max_length=20, choices=TeamCategory.choices, default=TeamCategory.CUSTOM
+    )
+    visibility = models.CharField(
+        max_length=20, choices=TeamVisibility.choices, default=TeamVisibility.PRIVATE
+    )
+    icon = models.CharField(max_length=32, blank=True, default="")
+    color = models.CharField(max_length=7, default="#6366f1")
+    created_by = models.ForeignKey(
+        User, on_delete=models.SET_NULL, null=True, related_name="created_teams"
+    )
+    is_active = models.BooleanField(default=True)
+    is_archived = models.BooleanField(default=False)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["name"]
+
+    def __str__(self):
+        return self.name
+
+    def save(self, *args, **kwargs):
+        if not self.slug:
+            self.slug = f"{self.name.lower().replace(' ', '-')}-{self.id.hex[:6]}"
+        super().save(*args, **kwargs)
+
+
+class TeamMembership(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    team = models.ForeignKey(Team, on_delete=models.CASCADE, related_name="memberships")
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="team_memberships")
+    role = models.CharField(max_length=20, choices=TeamRole.choices, default=TeamRole.VIEWER)
+    nickname = models.CharField(max_length=120, blank=True, default="")
+    is_active = models.BooleanField(default=True)
+    joined_at = models.DateTimeField(auto_now_add=True)
+    last_accessed_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        unique_together = ("team", "user")
+        ordering = ["-last_accessed_at"]
+
+    def __str__(self):
+        return f"{self.user.username} - {self.team.name} ({self.role})"
+
+
+class TeamInvite(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    team = models.ForeignKey(Team, on_delete=models.CASCADE, related_name="invites")
+    invited_by = models.ForeignKey(User, on_delete=models.CASCADE, related_name="sent_invites")
+    email = models.EmailField(null=True, blank=True)
+    code = models.CharField(max_length=12, unique=True)
+    role = models.CharField(max_length=20, choices=TeamRole.choices, default=TeamRole.VIEWER)
+    max_uses = models.PositiveIntegerField(default=1)
+    uses = models.PositiveIntegerField(default=0)
+    expires_at = models.DateTimeField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+
+    def __str__(self):
+        return f"Invite to {self.team.name}: {self.code}"
+
+    def save(self, *args, **kwargs):
+        if not self.code:
+            self.code = secrets.token_urlsafe(6)[:12]
+        super().save(*args, **kwargs)
+
+    @property
+    def is_valid(self):
+        if self.expires_at and self.expires_at < timezone.now():
+            return False
+        if self.max_uses and self.uses >= self.max_uses:
+            return False
+        return True
+
+
+class TeamPage(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    team = models.ForeignKey(Team, on_delete=models.CASCADE, related_name="pages")
+    original_page = models.ForeignKey(
+        "knowledge.WorkspacePage",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="team_copies",
+    )
+    title = models.CharField(max_length=220)
+    slug = models.SlugField(max_length=240)
+    icon = models.CharField(max_length=32, blank=True, default="")
+    cover = models.CharField(max_length=512, blank=True, default="")
+    page_type = models.CharField(
+        max_length=20, choices=TeamPageType.choices, default=TeamPageType.STANDARD
+    )
+    publish_state = models.CharField(
+        max_length=20, choices=PublishState.choices, default=PublishState.DRAFT
+    )
+    content = models.JSONField(default=dict, blank=True)
+    tags = models.JSONField(default=list, blank=True)
+    description = models.CharField(max_length=500, blank=True, default="")
+    is_pinned = models.BooleanField(default=False)
+    is_archived = models.BooleanField(default=False)
+    created_by = models.ForeignKey(
+        User, on_delete=models.SET_NULL, null=True, related_name="created_team_pages"
+    )
+    current_editor = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="editing_team_pages",
+    )
+    version = models.PositiveIntegerField(default=1)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        unique_together = ("team", "slug")
+        ordering = ["-updated_at"]
+
+    def __str__(self):
+        return f"{self.team.name} - {self.title}"
+
+
+class TeamPageRevision(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    page = models.ForeignKey(TeamPage, on_delete=models.CASCADE, related_name="revisions")
+    snapshot_json = models.JSONField(default=dict)
+    summary = models.CharField(max_length=300, blank=True, default="")
+    author = models.ForeignKey(User, on_delete=models.SET_NULL, null=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+
+
+class TeamGraphNode(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    team = models.ForeignKey(Team, on_delete=models.CASCADE, related_name="graph_nodes")
+    page = models.ForeignKey(
+        TeamPage, on_delete=models.CASCADE, null=True, blank=True, related_name="graph_nodes"
+    )
+    entity_type = models.CharField(max_length=50)  # page, member, file, decision, task
+    entity_id = models.UUIDField()
+    label = models.CharField(max_length=220)
+    description = models.CharField(max_length=500, blank=True, default="")
+    metadata = models.JSONField(default=dict, blank=True)
+    is_active = models.BooleanField(default=True)
+    x = models.FloatField(default=0)
+    y = models.FloatField(default=0)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        unique_together = ("team", "entity_type", "entity_id")
+        ordering = ["label"]
+
+
+class TeamGraphLink(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    team = models.ForeignKey(Team, on_delete=models.CASCADE, related_name="graph_links")
+    source = models.ForeignKey(
+        TeamGraphNode, on_delete=models.CASCADE, related_name="outgoing_links", null=True
+    )
+    target = models.ForeignKey(
+        TeamGraphNode, on_delete=models.CASCADE, related_name="incoming_links", null=True
+    )
+    label = models.CharField(max_length=220, blank=True, default="")
+    link_type = models.CharField(max_length=50, default="reference")
+    metadata = models.JSONField(default=dict, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        unique_together = ("team", "source", "target", "link_type")
+
+
+class TeamBranch(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    team = models.ForeignKey(Team, on_delete=models.CASCADE, related_name="branches")
+    page = models.ForeignKey(
+        TeamPage, on_delete=models.CASCADE, null=True, blank=True, related_name="branches"
+    )
+    title = models.CharField(max_length=220)
+    content = models.JSONField(default=dict, blank=True)
+    status = models.CharField(
+        max_length=20, default="draft"
+    )  # draft, in_review, approved, merged, closed
+    creator = models.ForeignKey(
+        User, on_delete=models.SET_NULL, null=True, related_name="created_branches"
+    )
+    reviewers = models.ManyToManyField(User, related_name="branch_reviews", blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["-updated_at"]
+
+
+class TeamChatMessage(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    team = models.ForeignKey(Team, on_delete=models.CASCADE, related_name="chat_messages")
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="team_chat_messages")
+    content = models.TextField()
+    metadata = models.JSONField(default=dict, blank=True)
+    is_ai_response = models.BooleanField(default=False)
+    mentioned_users = models.ManyToManyField(User, related_name="mentioned_in_team_chats", blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["created_at"]
+
+
+class TeamOnboarding(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    team = models.OneToOneField(Team, on_delete=models.CASCADE, related_name="onboarding")
+    welcome_message = models.TextField(blank=True, default="")
+    pinned_pages = models.ManyToManyField(TeamPage, blank=True, related_name="onboarding_pins")
+    auto_assign_role = models.CharField(
+        max_length=20, choices=TeamRole.choices, default=TeamRole.VIEWER
+    )
+    show_graph_on_join = models.BooleanField(default=True)
+    require_intro = models.BooleanField(default=False)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+
+class TeamActivity(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    team = models.ForeignKey(Team, on_delete=models.CASCADE, related_name="activities")
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="team_activities")
+    action = models.CharField(max_length=50)  # page_created, page_edited, member_joined, etc.
+    target_type = models.CharField(max_length=50, blank=True, default="")
+    target_id = models.UUIDField(null=True, blank=True)
+    metadata = models.JSONField(default=dict, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+
+
+class TeamKnowledgeConflict(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    team = models.ForeignKey(Team, on_delete=models.CASCADE, related_name="conflicts")
+    node_a_type = models.CharField(max_length=50)
+    node_a_id = models.UUIDField()
+    node_b_type = models.CharField(max_length=50)
+    node_b_id = models.UUIDField()
+    description = models.TextField()
+    status = models.CharField(
+        max_length=20, default="detected"
+    )  # detected, in_review, resolved, ignored
+    resolution = models.TextField(blank=True, default="")
+    resolved_by = models.ForeignKey(
+        User, on_delete=models.SET_NULL, null=True, blank=True, related_name="resolved_team_conflicts"
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    resolved_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+
+
+class TeamNotification(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    team = models.ForeignKey(Team, on_delete=models.CASCADE, related_name="notifications")
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="team_notifications")
+    notification_type = models.CharField(
+        max_length=50
+    )  # page_shared, mentioned, review_requested, etc.
+    title = models.CharField(max_length=220)
+    message = models.TextField()
+    link = models.CharField(max_length=512, blank=True, default="")
+    is_read = models.BooleanField(default=False)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+        unique_together = ("team", "user", "notification_type", "link")
+
+
+class TeamAuditLog(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    team = models.ForeignKey(Team, on_delete=models.CASCADE, related_name="audit_logs")
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="team_audit_logs")
+    action = models.CharField(max_length=50)
+    target_type = models.CharField(max_length=50, blank=True, default="")
+    target_id = models.UUIDField(null=True, blank=True)
+    metadata = models.JSONField(default=dict, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-created_at"]

@@ -2,8 +2,11 @@ from django.db import models
 
 class Source(models.Model):
     name = models.CharField(max_length=255)
-    source_type = models.CharField(max_length=50) # 'file' or 'url'
+    source_type = models.CharField(max_length=50)  # 'file' or 'url'
     path_or_url = models.TextField()
+    extracted_text = models.TextField(blank=True, default="")
+    status = models.CharField(max_length=50, default="pending")
+    created_by = models.CharField(max_length=120, blank=True, default="")
     summary = models.TextField(blank=True)
     reliability_score = models.IntegerField(default=3) # 1-5 scale
     created_at = models.DateTimeField(auto_now_add=True)

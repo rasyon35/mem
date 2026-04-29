@@ -1,9 +1,10 @@
 'use client';
 
-import React from 'react';
+import React, { useState } from 'react';
 import { usePathname } from 'next/navigation';
 import Sidebar from '@/components/Sidebar';
 import { useWiki } from '@/context/WikiContext';
+import { useTeam } from '@/context/TeamContext';
 import { Modal, DiffView } from '@/components/UI';
 import CollisionWizard from '@/components/CollisionWizard';
 
@@ -17,11 +18,14 @@ export default function DashboardLayout({
     mergeModalOpen, setMergeModalOpen, 
     conflicts, fetchConflicts, fetchHistory,
   } = useWiki();
-
+  const [isCollapsed, setIsCollapsed] = useState(false);
   const pathname = usePathname();
-  const [isCollapsed, setIsCollapsed] = React.useState(false);
+  const { currentTeam } = useTeam();
 
   const getPageTitle = () => {
+    if (pathname.includes('/teams/') && currentTeam) {
+      return currentTeam.name;
+    }
     const path = pathname.split('/').pop() || 'Dashboard';
     return path.charAt(0).toUpperCase() + path.slice(1);
   };

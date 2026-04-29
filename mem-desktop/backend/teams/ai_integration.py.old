@@ -1,0 +1,209 @@
+from .models import (
+    Team,
+    TeamMembership,
+    TeamChatMessage,
+    TeamPage,
+    TeamActivity,
+)
+from .serializers import TeamPageSerializer
+
+
+class TeamAIContext:
+    """
+    Provides team-specific context for AI queries.
+    
+    Usage:
+        context = TeamAIContext(team, user)
+        prompt = context.build_system_prompt(user_question)
+    """
+
+    def __init__(self, team, user=None):
+        self.team = team
+        self.user = user
+
+    def build_system_prompt(self, user_question=""):
+        team_info = f"""You are answering questions about the '{self.team.name}' team workspace.
+This is a collaborative knowledge environment with {self.member_count()} members.
+Team description: {self.team.description or 'No description provided.'}
+"""
+
+        pinned_pages = self.pinned_pages()
+        if pinned_pages:
+            team_info += "\n📌 Pinned Pages:\n"
+            for page in pinned_pages[:5]:
+                team_info += f"- {page.title}: {page.description[:100]}\n"
+
+        recent_activity = self.recent_activity()
+        if recent_activity:
+            team_info += "\n📊 Recent Activity:\n"
+            for activity in recent_activity[:10]:
+                team_info += f"- {activity['action']}: {activity.get('summary', 'No summary')}\n"
+
+        return team_info.strip()
+
+    def build_context_for_query(self):
+        """Build searchable context from team resources."""
+        context_parts = []
+
+        pages = self.team.pages.filter(
+            is_archived=False
+        ).order_by("-updated_at")[:20]
+
+        context_parts.append("=== TEAM PAGES ===")
+        for page in pages:
+            context_parts.append(f"\n## {page.title}\n")
+            if page.description:
+                context_parts.append(f"Description: {page.description}\n")
+            if page.content:
+                content_str = str(page.content)[:500]
+                context_parts.append(f"Content: {content_str}...\n")
+
+        chat_history = self.team.chat_messages.all()[:50]
+        context_parts.append("\n=== RECENT DISCUSSIONS ===")
+        for msg in chat_history:
+            if not msg.is_ai_response:
+                context_parts.append(f"\n[{msg.user.username}]: {msg.content[:200]}\n")
+
+        return "\n".join(context_parts)
+
+    def member_count(self):
+        return self.team.memberships.filter(is_active=True).count()
+
+    def pinned_pages(self):
+        return self.team.pages.filter(is_pinned=True, is_archived=False)[:10]
+
+    def recent_activity(self):
+        activities = self.team.activities.all()[:20]
+        return [
+            {
+                "action": a.action,
+                "user": a.user.username if a.user else "System",
+                "summary": a.metadata.get("title", ""),
+                "created_at": a.created_at.isoformat(),
+            }
+            for a in activities
+        ]
+
+    def get_relevant_pages(self, query, limit=5):
+        """Search team pages for relevance to query."""
+        return self.team.pages.filter(
+            is_archived=False
+        ).filter(
+            __raw__={
+                "$or": [
+                    {"title": {"$regex": query, "$options": "i"}},
+                    {"description": {"$regex": query, "$options": "i"}},
+                ]
+            }
+        )[:limit]
+
+
+def team_chat_processor(team, user, question, ai_client):
+    """
+    Process a chat message for a team.
+    
+    1. Store the user's message
+    2. Build team context
+    3. Query AI
+    4. Store AI response
+    5. Return response
+    """
+    user_message = TeamChatMessage.objects.create(
+        team=team,
+        user=user,
+        content=question,
+    )
+
+    TeamActivity.objects.create(
+        team=team,
+        user=user,
+        action="chat_asked",
+        metadata={"question_preview": question[:100]},
+    )
+
+    team_context = TeamAIContext(team, user)
+    system_prompt = team_context.build_system_prompt(question)
+    search_context = team_context.build_context_for_query()
+
+    full_prompt = f"""{system_prompt}
+
+Below is relevant context from the team's knowledge base:
+{search_context}
+
+Question: {question}
+"""
+
+    messages = [
+        {"role": "system", "content": full_prompt},
+        {"role": "user", "content": question},
+    ]
+
+    try:
+        answer = ai_client.answer_question(
+            question,
+            wiki_pages_content=search_context
+        )
+    except Exception as e:
+        answer = f"I encountered an error searching the team knowledge base: {str(e)}"
+
+    ai_message = TeamChatMessage.objects.create(
+        team=team,
+        user=user,
+        content=answer,
+        is_ai_response=True,
+    )
+
+    return {
+        "user_message": {
+            "id": str(user_message.id),
+            "content": user_message.content,
+            "user": user.username,
+            "created_at": user_message.created_at.isoformat(),
+        },
+        "ai_response": {
+            "id": str(ai_message.id),
+            "content": ai_message.content,
+            "created_at": ai_message.created_at.isoformat(),
+        },
+        "context_used": {
+            "pages_searched": team_context.pinned_pages().count(),
+            "team_members": team_context.member_count(),
+        },
+    }
+
+
+def get_team_decision_context(team):
+    """Extract decision-related content from team."""
+    decisions = team.pages.filter(
+        page_type="decision",
+        is_archived=False
+    )
+    
+    context = "=== TEAM DECISIONS ===\n"
+    for page in decisions:
+        context += f"\n## {page.title}\n"
+        context += f"Status: {page.publish_state}\n"
+        if page.description:
+            context += f"Summary: {page.description}\n"
+    
+    return context
+
+
+def check_team_knowledge_conflicts(team, new_claim):
+    """Check if a new claim conflicts with existing team knowledge."""
+    conflicts = []
+
+    existing_pages = team.pages.filter(
+        page_type="decision",
+        publish_state="canonical"
+    )
+
+    for page in existing_pages:
+        if page.description and new_claim.lower() in page.description.lower():
+            conflicts.append({
+                "page_id": str(page.id),
+                "page_title": page.title,
+                "conflict_type": "possible_contradiction",
+            })
+
+    return conflicts

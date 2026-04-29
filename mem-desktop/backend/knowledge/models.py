@@ -96,8 +96,10 @@ class PageLink(models.Model):
 class PageRevision(models.Model):
     page = models.ForeignKey(WorkspacePage, on_delete=models.CASCADE, related_name="revisions")
     snapshot_json = models.JSONField(default=dict)
+    editor = models.CharField(max_length=120, default="Local User")
+    content_snapshot = models.JSONField(default=dict)
+    note = models.CharField(max_length=300, blank=True, default="")
     summary = models.CharField(max_length=300, blank=True, default="")
-    author = models.CharField(max_length=120, default="Local User")
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:

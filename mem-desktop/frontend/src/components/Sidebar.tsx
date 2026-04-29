@@ -3,12 +3,14 @@
 import React, { useState, useMemo } from 'react';
 import Link from 'next/link';
 import { usePathname, useSearchParams } from 'next/navigation';
-import { useWiki } from '@/context/WikiContext';
+import { useWikiPages } from '@/context/WikiContext';
 import { useTheme } from '@/context/ThemeContext';
+import { useTeam } from '@/context/TeamContext';
 import { 
   IngestIcon, ChatIcon,  WikiIcon, GraphIcon,
   TimelineIcon, CollabIcon, SettingsIcon
 } from './Icons';
+import TeamSwitcher from './TeamSwitcher';
 
 interface SidebarProps {
   isCollapsed: boolean;
@@ -18,7 +20,7 @@ interface SidebarProps {
 export default function Sidebar({ isCollapsed, onToggle }: SidebarProps) {
   const pathname = usePathname();
   const searchParams = useSearchParams();
-  const { wikiPages, locks, presence, team, wikiSidebarOpen, setWikiSidebarOpen } = useWiki();
+  const { wikiPages } = useWikiPages();
   const { theme, toggleTheme } = useTheme();
   const [openCategories, setOpenCategories] = useState<Record<string, boolean>>({});
   const [openSections, setOpenSections] = useState<Record<string, boolean>>({ Core: true, Wiki: true, Management: true });
@@ -78,6 +80,9 @@ export default function Sidebar({ isCollapsed, onToggle }: SidebarProps) {
       </div>
 
       <nav className="nav px-3 flex-1 overflow-y-auto custom-scrollbar space-y-1">
+        {/* Workspace Switcher */}
+        <TeamSwitcher isCollapsed={isCollapsed} />
+
         {navSections.map(section => {
           const isSectionOpen = openSections[section.key] !== false;
           return (

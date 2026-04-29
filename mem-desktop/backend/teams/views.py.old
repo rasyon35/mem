@@ -1,0 +1,1027 @@
+from rest_framework.decorators import api_view, permission_classes
+from rest_framework.permissions import AllowAny, IsAuthenticated
+from rest_framework.response import Response
+from rest_framework import status
+from django.db.models import Q
+from django.utils import timezone
+import json
+
+from .models import (
+    Team,
+    TeamMembership,
+    TeamInvite,
+    TeamPage,
+    TeamPageRevision,
+    TeamGraphNode,
+    TeamGraphLink,
+    TeamBranch,
+    TeamChatMessage,
+    TeamOnboarding,
+    TeamActivity,
+    TeamKnowledgeConflict,
+    TeamNotification,
+    TeamAuditLog,
+)
+from .serializers import (
+    TeamSerializer,
+    TeamCreateSerializer,
+    TeamMembershipSerializer,
+    TeamInviteSerializer,
+    TeamPageSerializer,
+    TeamPageRevisionSerializer,
+    TeamGraphNodeSerializer,
+    TeamGraphLinkSerializer,
+    TeamBranchSerializer,
+    TeamChatMessageSerializer,
+    TeamOnboardingSerializer,
+    TeamActivitySerializer,
+    TeamNotificationSerializer,
+    TeamAuditLogSerializer,
+    TeamKnowledgeConflictSerializer,
+)
+
+
+def get_team_membership(request, team):
+    if not request.user.is_authenticated:
+        return None
+    return TeamMembership.objects.filter(team=team, user=request.user, is_active=True).first()
+
+
+def require_role(*allowed_roles):
+    def decorator(view_func):
+        def wrapper(request, team_id, *args, **kwargs):
+            try:
+                team = Team.objects.get(id=team_id)
+                membership = get_team_membership(request, team)
+                if not membership:
+                    return Response(
+                        {"error": "You are not a member of this team"},
+                        status=status.HTTP_403_FORBIDDEN,
+                    )
+                if membership.role not in allowed_roles and "owner" not in allowed_roles:
+                    if membership.role != "owner":
+                        return Response(
+                            {"error": "Insufficient permissions"},
+                            status=status.HTTP_403_FORBIDDEN,
+                        )
+                return view_func(request, team, membership, *args, **kwargs)
+            except Team.DoesNotExist:
+                return Response({"error": "Team not found"}, status=status.HTTP_404_NOT_FOUND)
+        return wrapper
+    return decorator
+
+
+@api_view(["GET", "POST"])
+@permission_classes([IsAuthenticated])
+def team_list_create(request):
+    if request.method == "GET":
+        memberships = TeamMembership.objects.filter(
+            user=request.user, is_active=True
+        ).select_related("team")
+        teams = [m.team for m in memberships]
+        serializer = TeamSerializer(teams, many=True, context={"request": request})
+        return Response(serializer.data)
+
+    elif request.method == "POST":
+        serializer = TeamCreateSerializer(data=request.data, context={"request": request})
+        if serializer.is_valid():
+            team = serializer.save()
+            TeamActivity.objects.create(
+                team=team,
+                user=request.user,
+                action="team_created",
+                target_type="team",
+                target_id=team.id,
+            )
+            return Response(TeamSerializer(team, context={"request": request}).data, status=status.HTTP_201_CREATED)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+@api_view(["GET", "PUT", "DELETE"])
+@permission_classes([IsAuthenticated])
+def team_detail(request, team_id):
+    try:
+        team = Team.objects.get(id=team_id)
+    except Team.DoesNotExist:
+        return Response({"error": "Team not found"}, status=status.HTTP_404_NOT_FOUND)
+
+    membership = get_team_membership(request, team)
+    if not membership:
+        return Response({"error": "Access denied"}, status=status.HTTP_403_FORBIDDEN)
+
+    if request.method == "GET":
+        return Response(TeamSerializer(team, context={"request": request}).data)
+
+    elif request.method == "PUT":
+        if membership.role != "owner":
+            return Response({"error": "Only owners can edit team"}, status=status.HTTP_403_FORBIDDEN)
+        serializer = TeamSerializer(team, data=request.data, partial=True, context={"request": request})
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    elif request.method == "DELETE":
+        if membership.role != "owner":
+            return Response({"error": "Only owners can delete team"}, status=status.HTTP_403_FORBIDDEN)
+        team.is_archived = True
+        team.save()
+        return Response({"deleted": True})
+
+
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def team_home(request, team_id):
+    try:
+        team = Team.objects.get(id=team_id)
+    except Team.DoesNotExist:
+        return Response({"error": "Team not found"}, status=status.HTTP_404_NOT_FOUND)
+
+    membership = get_team_membership(request, team)
+    if not membership:
+        return Response({"error": "Access denied"}, status=status.HTTP_403_FORBIDDEN)
+
+    membership.last_accessed_at = timezone.now()
+    membership.save()
+
+    members = TeamMembershipSerializer(
+        team.memberships.filter(is_active=True), many=True
+    ).data
+
+    recent_pages = TeamPageSerializer(
+        team.pages.filter(is_archived=False).order_by("-updated_at")[:10], many=True
+    ).data
+
+    recent_activity = TeamActivitySerializer(
+        team.activities.all()[:20], many=True
+    ).data
+
+    try:
+        onboarding = team.onboarding
+        onboarding_data = TeamOnboardingSerializer(onboarding).data
+    except TeamOnboarding.DoesNotExist:
+        onboarding_data = None
+
+    return Response({
+        "team": TeamSerializer(team, context={"request": request}).data,
+        "members": members,
+        "recent_pages": recent_pages,
+        "recent_activity": recent_activity,
+        "onboarding": onboarding_data,
+    })
+
+
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def my_teams(request):
+    memberships = TeamMembership.objects.filter(
+        user=request.user, is_active=True
+    ).select_related("team")
+    teams_data = []
+    for m in memberships:
+        team_data = TeamSerializer(m.team, context={"request": request}).data
+        team_data["my_role"] = m.role
+        teams_data.append(team_data)
+    return Response(teams_data)
+
+
+@api_view(["GET", "POST"])
+@permission_classes([IsAuthenticated])
+def team_members(request, team_id):
+    try:
+        team = Team.objects.get(id=team_id)
+    except Team.DoesNotExist:
+        return Response({"error": "Team not found"}, status=status.HTTP_404_NOT_FOUND)
+
+    membership = get_team_membership(request, team)
+    if not membership:
+        return Response({"error": "Access denied"}, status=status.HTTP_403_FORBIDDEN)
+
+    if request.method == "GET":
+        members = TeamMembershipSerializer(
+            team.memberships.filter(is_active=True), many=True
+        ).data
+        return Response(members)
+
+    elif request.method == "POST":
+        if membership.role not in ["owner", "editor"]:
+            return Response(
+                {"error": "Only owners and editors can add members"},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+        email = request.data.get("email")
+        user_id = request.data.get("user_id")
+        role = request.data.get("role", "viewer")
+        if email:
+            invite = TeamInvite.objects.create(
+                team=team,
+                invited_by=request.user,
+                email=email,
+                role=role,
+            )
+            return Response(TeamInviteSerializer(invite).data, status=status.HTTP_201_CREATED)
+        return Response({"error": "email or user_id required"}, status=status.HTTP_400_BAD_REQUEST)
+
+
+@api_view(["POST"])
+@permission_classes([IsAuthenticated])
+def remove_member(request, team_id):
+    try:
+        team = Team.objects.get(id=team_id)
+    except Team.DoesNotExist:
+        return Response({"error": "Team not found"}, status=status.HTTP_404_NOT_FOUND)
+
+    membership = get_team_membership(request, team)
+    if not membership or membership.role != "owner":
+        return Response({"error": "Only owners can remove members"}, status=status.HTTP_403_FORBIDDEN)
+
+    member_id = request.data.get("member_id")
+    try:
+        member = TeamMembership.objects.get(id=member_id, team=team)
+    except TeamMembership.DoesNotExist:
+        return Response({"error": "Member not found"}, status=status.HTTP_404_NOT_FOUND)
+
+    if member.role == "owner":
+        return Response({"error": "Cannot remove owner"}, status=status.HTTP_400_BAD_REQUEST)
+
+    TeamBranch.objects.filter(
+        team=team, creator=member.user, status="draft"
+    ).update(status="orphaned")
+
+    TeamAuditLog.objects.create(
+        team=team,
+        user=request.user,
+        action="member_removed",
+        target_type="user",
+        target_id=member.user_id,
+    )
+
+    member.delete()
+    return Response({"removed": True})
+
+
+@api_view(["POST"])
+@permission_classes([IsAuthenticated])
+def create_invite(request, team_id):
+    try:
+        team = Team.objects.get(id=team_id)
+    except Team.DoesNotExist:
+        return Response({"error": "Team not found"}, status=status.HTTP_404_NOT_FOUND)
+
+    membership = get_team_membership(request, team)
+    if not membership or membership.role != "owner":
+        return Response({"error": "Only owners can create invites"}, status=status.HTTP_403_FORBIDDEN)
+
+    invite = TeamInvite.objects.create(
+        team=team,
+        invited_by=request.user,
+        role=request.data.get("role", "viewer"),
+        max_uses=request.data.get("max_uses", 1),
+        expires_at=request.data.get("expires_at"),
+    )
+    return Response(TeamInviteSerializer(invite).data, status=status.HTTP_201_CREATED)
+
+
+@api_view(["GET"])
+@permission_classes([AllowAny])
+def accept_invite(request, code):
+    try:
+        invite = TeamInvite.objects.get(code=code)
+    except TeamInvite.DoesNotExist:
+        return Response({"error": "Invalid invite code"}, status=status.HTTP_404_NOT_FOUND)
+
+    if not invite.is_valid:
+        return Response({"error": "Invite expired or used"}, status=status.HTTP_400_BAD_REQUEST)
+
+    team = invite.team
+    serializer = TeamSerializer(team)
+    return Response({
+        "team": serializer.data,
+        "invite": TeamInviteSerializer(invite).data,
+    })
+
+
+@api_view(["POST"])
+@permission_classes([IsAuthenticated])
+def join_team(request, team_id):
+    try:
+        team = Team.objects.get(id=team_id)
+    except Team.DoesNotExist:
+        return Response({"error": "Team not found"}, status=status.HTTP_404_NOT_FOUND)
+
+    code = request.data.get("code", "")
+    if code:
+        try:
+            invite = TeamInvite.objects.get(team=team, code=code)
+            if not invite.is_valid:
+                return Response({"error": "Invalid invite"}, status=status.HTTP_400_BAD_REQUEST)
+            invite.uses += 1
+            invite.save()
+            role = invite.role
+        except TeamInvite.DoesNotExist:
+            return Response({"error": "Invalid invite code"}, status=status.HTTP_400_BAD_REQUEST)
+    else:
+        if team.visibility == "private":
+            return Response({"error": "This team requires an invite"}, status=status.HTTP_403_FORBIDDEN)
+        role = "viewer"
+
+    membership, created = TeamMembership.objects.get_or_create(
+        team=team, user=request.user, defaults={"role": role}
+    )
+    if not created and membership.is_active:
+        return Response({"error": "Already a member"}, status=status.HTTP_400_BAD_REQUEST)
+
+    membership.is_active = True
+    membership.role = role
+    membership.save()
+
+    TeamActivity.objects.create(
+        team=team,
+        user=request.user,
+        action="member_joined",
+        target_type="user",
+        target_id=request.user.id,
+    )
+
+    return Response(TeamMembershipSerializer(membership).data)
+
+
+@api_view(["GET", "POST"])
+@permission_classes([IsAuthenticated])
+def team_pages(request, team_id):
+    try:
+        team = Team.objects.get(id=team_id)
+    except Team.DoesNotExist:
+        return Response({"error": "Team not found"}, status=status.HTTP_404_NOT_FOUND)
+
+    membership = get_team_membership(request, team)
+    if not membership:
+        return Response({"error": "Access denied"}, status=status.HTTP_403_FORBIDDEN)
+
+    if request.method == "GET":
+        page_type = request.query_params.get("type")
+        archived = request.query_params.get("archived")
+        pinned = request.query_params.get("pinned")
+
+        pages = team.pages.all()
+        if page_type:
+            pages = pages.filter(page_type=page_type)
+        if archived:
+            pages = pages.filter(is_archived=archived.lower() == "true")
+        else:
+            pages = pages.filter(is_archived=False)
+        if pinned:
+            pages = pages.filter(is_pinned=pinned.lower() == "true")
+
+        return Response(TeamPageSerializer(pages, many=True).data)
+
+    elif request.method == "POST":
+        if membership.role not in ["owner", "editor"]:
+            return Response(
+                {"error": "Only owners and editors can create pages"},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+        page = TeamPage.objects.create(
+            team=team,
+            title=request.data.get("title", "Untitled"),
+            slug=request.data.get("slug", ""),
+            content=request.data.get("content", {}),
+            page_type=request.data.get("page_type", "standard"),
+            publish_state=request.data.get("publish_state", "draft"),
+            created_by=request.user,
+        )
+        TeamActivity.objects.create(
+            team=team,
+            user=request.user,
+            action="page_created",
+            target_type="page",
+            target_id=page.id,
+            metadata={"title": page.title},
+        )
+        return Response(TeamPageSerializer(page).data, status=status.HTTP_201_CREATED)
+
+
+@api_view(["GET", "PUT", "DELETE"])
+@permission_classes([IsAuthenticated])
+def team_page_detail(request, team_id, page_id):
+    try:
+        team = Team.objects.get(id=team_id)
+    except Team.DoesNotExist:
+        return Response({"error": "Team not found"}, status=status.HTTP_404_NOT_FOUND)
+
+    membership = get_team_membership(request, team)
+    if not membership:
+        return Response({"error": "Access denied"}, status=status.HTTP_403_FORBIDDEN)
+
+    try:
+        page = team.pages.get(id=page_id)
+    except TeamPage.DoesNotExist:
+        return Response({"error": "Page not found"}, status=status.HTTP_404_NOT_FOUND)
+
+    if request.method == "GET":
+        return Response(TeamPageSerializer(page).data)
+
+    elif request.method == "PUT":
+        if membership.role not in ["owner", "editor"]:
+            return Response(
+                {"error": "Only owners and editors can edit pages"},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+        if page.current_editor and page.current_editor != request.user:
+            return Response(
+                {"error": "Page is being edited by another user"},
+                status=status.HTTP_409_CONFLICT,
+            )
+
+        old_content = page.content
+        TeamPageRevision.objects.create(
+            page=page,
+            snapshot_json=old_content,
+            summary=request.data.get("summary", ""),
+            author=request.user,
+        )
+
+        serializer = TeamPageSerializer(page, data=request.data, partial=True)
+        if serializer.is_valid():
+            page = serializer.save()
+            page.version += 1
+            page.current_editor = None
+            page.save()
+
+            TeamActivity.objects.create(
+                team=team,
+                user=request.user,
+                action="page_edited",
+                target_type="page",
+                target_id=page.id,
+                metadata={"title": page.title},
+            )
+            return Response(TeamPageSerializer(page).data)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    elif request.method == "DELETE":
+        if membership.role not in ["owner", "editor"]:
+            return Response(
+                {"error": "Only owners and editors can delete pages"},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+        page.delete()
+        return Response({"deleted": True})
+
+
+@api_view(["POST"])
+@permission_classes([IsAuthenticated])
+def lock_page(request, team_id, page_id):
+    try:
+        page = TeamPage.objects.get(id=page_id, team_id=team_id)
+    except TeamPage.DoesNotExist:
+        return Response({"error": "Page not found"}, status=status.HTTP_404_NOT_FOUND)
+
+    team = page.team
+    membership = get_team_membership(request, team)
+    if not membership or membership.role not in ["owner", "editor"]:
+        return Response({"error": "Only editors can lock pages"}, status=status.HTTP_403_FORBIDDEN)
+
+    page.current_editor = request.user
+    page.save()
+    return Response({"locked": True, "user": request.user.username})
+
+
+@api_view(["POST"])
+@permission_classes([IsAuthenticated])
+def unlock_page(request, team_id, page_id):
+    try:
+        page = TeamPage.objects.get(id=page_id, team_id=team_id)
+    except TeamPage.DoesNotExist:
+        return Response({"error": "Page not found"}, status=status.HTTP_404_NOT_FOUND)
+
+    team = page.team
+    membership = get_team_membership(request, team)
+    if not membership:
+        return Response({"error": "Access denied"}, status=status.HTTP_403_FORBIDDEN)
+
+    if page.current_editor and page.current_editor != request.user:
+        return Response({"error": "Page is locked by another user"}, status=status.HTTP_409_CONFLICT)
+
+    page.current_editor = None
+    page.save()
+    return Response({"unlocked": True})
+
+
+@api_view(["GET", "POST"])
+@permission_classes([IsAuthenticated])
+def team_graph(request, team_id):
+    try:
+        team = Team.objects.get(id=team_id)
+    except Team.DoesNotExist:
+        return Response({"error": "Team not found"}, status=status.HTTP_404_NOT_FOUND)
+
+    membership = get_team_membership(request, team)
+    if not membership:
+        return Response({"error": "Access denied"}, status=status.HTTP_403_FORBIDDEN)
+
+    if request.method == "GET":
+        nodes = TeamGraphNodeSerializer(
+            team.graph_nodes.filter(is_active=True), many=True
+        ).data
+        links = TeamGraphLinkSerializer(
+            team.graph_links.all(), many=True
+        ).data
+        return Response({"nodes": nodes, "links": links})
+
+    elif request.method == "POST":
+        if membership.role not in ["owner", "editor"]:
+            return Response(
+                {"error": "Only owners and editors can update graph"},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+        node_data = request.data.get("node")
+        link_data = request.data.get("link")
+
+        node = None
+        if node_data:
+            node, _ = TeamGraphNode.objects.update_or_create(
+                team=team,
+                entity_type=node_data.get("entity_type"),
+                entity_id=node_data.get("entity_id"),
+                defaults={
+                    "label": node_data.get("label", ""),
+                    "description": node_data.get("description", ""),
+                    "metadata": node_data.get("metadata", {}),
+                    "x": node_data.get("x", 0),
+                    "y": node_data.get("y", 0),
+                },
+            )
+        if link_data:
+            link = TeamGraphLink.objects.create(
+                team=team,
+                source=node,
+                target_id=link_data.get("target_id"),
+                label=link_data.get("label", ""),
+                link_type=link_data.get("link_type", "reference"),
+            )
+        return Response({"saved": True})
+
+
+@api_view(["GET", "POST"])
+@permission_classes([IsAuthenticated])
+def team_branches(request, team_id):
+    try:
+        team = Team.objects.get(id=team_id)
+    except Team.DoesNotExist:
+        return Response({"error": "Team not found"}, status=status.HTTP_404_NOT_FOUND)
+
+    membership = get_team_membership(request, team)
+    if not membership:
+        return Response({"error": "Access denied"}, status=status.HTTP_403_FORBIDDEN)
+
+    if request.method == "GET":
+        status_filter = request.query_params.get("status")
+        branches = team.branches.all()
+        if status_filter:
+            branches = branches.filter(status=status_filter)
+        return Response(TeamBranchSerializer(branches, many=True).data)
+
+    elif request.method == "POST":
+        if membership.role not in ["owner", "editor"]:
+            return Response(
+                {"error": "Only owners and editors can create branches"},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+        branch = TeamBranch.objects.create(
+            team=team,
+            title=request.data.get("title", "Untitled Draft"),
+            content=request.data.get("content", {}),
+            status="draft",
+            creator=request.user,
+        )
+        return Response(TeamBranchSerializer(branch).data, status=status.HTTP_201_CREATED)
+
+
+@api_view(["POST"])
+@permission_classes([IsAuthenticated])
+def branch_action(request, team_id, branch_id):
+    try:
+        team = Team.objects.get(id=team_id)
+    except Team.DoesNotExist:
+        return Response({"error": "Team not found"}, status=status.HTTP_404_NOT_FOUND)
+
+    membership = get_team_membership(request, team)
+    if not membership:
+        return Response({"error": "Access denied"}, status=status.HTTP_403_FORBIDDEN)
+
+    try:
+        branch = team.branches.get(id=branch_id)
+    except TeamBranch.DoesNotExist:
+        return Response({"error": "Branch not found"}, status=status.HTTP_404_NOT_FOUND)
+
+    action = request.data.get("action")
+
+    if action == "submit_review":
+        branch.status = "in_review"
+        branch.save()
+    elif action == "approve":
+        if membership.role not in ["owner", "editor"]:
+            return Response(
+                {"error": "Only editors can approve"},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+        branch.status = "approved"
+        branch.save()
+    elif action == "merge":
+        if membership.role not in ["owner", "editor"]:
+            return Response(
+                {"error": "Only editors can merge"},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+        branch.status = "merged"
+        branch.save()
+    elif action == "close":
+        branch.status = "closed"
+        branch.save()
+
+    return Response({"action": action, "status": branch.status})
+
+
+@api_view(["GET", "POST"])
+@permission_classes([IsAuthenticated])
+def team_chat(request, team_id):
+    try:
+        team = Team.objects.get(id=team_id)
+    except Team.DoesNotExist:
+        return Response({"error": "Team not found"}, status=status.HTTP_404_NOT_FOUND)
+
+    membership = get_team_membership(request, team)
+    if not membership:
+        return Response({"error": "Access denied"}, status=status.HTTP_403_FORBIDDEN)
+
+    if request.method == "GET":
+        limit = int(request.query_params.get("limit", 50))
+        messages = TeamChatMessageSerializer(
+            team.chat_messages.all()[:limit], many=True
+        ).data
+        return Response(messages)
+
+    elif request.method == "POST":
+        message = TeamChatMessage.objects.create(
+            team=team,
+            user=request.user,
+            content=request.data.get("content", ""),
+        )
+        TeamActivity.objects.create(
+            team=team,
+            user=request.user,
+            action="chat_message",
+            metadata={"content": message.content[:100]},
+        )
+        return Response(TeamChatMessageSerializer(message).data, status=status.HTTP_201_CREATED)
+
+
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def team_activities(request, team_id):
+    try:
+        team = Team.objects.get(id=team_id)
+    except Team.DoesNotExist:
+        return Response({"error": "Team not found"}, status=status.HTTP_404_NOT_FOUND)
+
+    membership = get_team_membership(request, team)
+    if not membership:
+        return Response({"error": "Access denied"}, status=status.HTTP_403_FORBIDDEN)
+
+    limit = int(request.query_params.get("limit", 50))
+    activities = TeamActivitySerializer(
+        team.activities.all()[:limit], many=True
+    ).data
+    return Response(activities)
+
+
+@api_view(["GET", "PUT", "POST"])
+@permission_classes([IsAuthenticated])
+def team_notifications(request, team_id):
+    try:
+        team = Team.objects.get(id=team_id)
+    except Team.DoesNotExist:
+        return Response({"error": "Team not found"}, status=status.HTTP_404_NOT_FOUND)
+
+    membership = get_team_membership(request, team)
+    if not membership:
+        return Response({"error": "Access denied"}, status=status.HTTP_403_FORBIDDEN)
+
+    if request.method == "GET":
+        unread_only = request.query_params.get("unread")
+        notifications = team.notifications.filter(user=request.user)
+        if unread_only:
+            notifications = notifications.filter(is_read=False)
+        return Response(TeamNotificationSerializer(notifications, many=True).data)
+
+    elif request.method == "PUT":
+        notification_id = request.data.get("notification_id")
+        notification = team.notifications.filter(
+            id=notification_id, user=request.user
+        ).first()
+        if notification:
+            notification.is_read = True
+            notification.save()
+        return Response({"marked_read": True})
+
+    elif request.method == "POST":
+        if membership.role not in ["owner"]:
+            return Response(
+                {"error": "Only owners can send notifications"},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+        notification_type = request.data.get("notification_type", "announcement")
+        title = request.data.get("title", "")
+        message = request.data.get("message", "")
+        link = request.data.get("link", "")
+
+        for m in team.memberships.filter(is_active=True):
+            TeamNotification.objects.create(
+                team=team,
+                user=m.user,
+                notification_type=notification_type,
+                title=title,
+                message=message,
+                link=link,
+            )
+        return Response({"sent": True})
+
+
+@api_view(["GET", "POST"])
+@permission_classes([IsAuthenticated])
+def team_conflicts(request, team_id):
+    try:
+        team = Team.objects.get(id=team_id)
+    except Team.DoesNotExist:
+        return Response({"error": "Team not found"}, status=status.HTTP_404_NOT_FOUND)
+
+    membership = get_team_membership(request, team)
+    if not membership:
+        return Response({"error": "Access denied"}, status=status.HTTP_403_FORBIDDEN)
+
+    if request.method == "GET":
+        status_filter = request.query_params.get("status")
+        conflicts = team.conflicts.all()
+        if status_filter:
+            conflicts = conflicts.filter(status=status_filter)
+        return Response(TeamKnowledgeConflictSerializer(conflicts, many=True).data)
+
+    elif request.method == "POST":
+        if membership.role not in ["owner", "editor"]:
+            return Response(
+                {"error": "Only editors can create conflicts"},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+        conflict = TeamKnowledgeConflict.objects.create(
+            team=team,
+            node_a_type=request.data.get("node_a_type"),
+            node_a_id=request.data.get("node_a_id"),
+            node_b_type=request.data.get("node_b_type"),
+            node_b_id=request.data.get("node_b_id"),
+            description=request.data.get("description", ""),
+        )
+        return Response(TeamKnowledgeConflictSerializer(conflict).data, status=status.HTTP_201_CREATED)
+
+
+@api_view(["POST"])
+@permission_classes([IsAuthenticated])
+def resolve_conflict(request, team_id, conflict_id):
+    try:
+        team = Team.objects.get(id=team_id)
+    except Team.DoesNotExist:
+        return Response({"error": "Team not found"}, status=status.HTTP_404_NOT_FOUND)
+
+    membership = get_team_membership(request, team)
+    if not membership or membership.role not in ["owner", "editor"]:
+        return Response({"error": "Only editors can resolve conflicts"}, status=status.HTTP_403_FORBIDDEN)
+
+    try:
+        conflict = team.conflicts.get(id=conflict_id)
+    except TeamKnowledgeConflict.DoesNotExist:
+        return Response({"error": "Conflict not found"}, status=status.HTTP_404_NOT_FOUND)
+
+    conflict.status = "resolved"
+    conflict.resolution = request.data.get("resolution", "")
+    conflict.resolved_by = request.user
+    conflict.resolved_at = timezone.now()
+    conflict.save()
+
+    return Response({"resolved": True})
+
+
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def team_audit(request, team_id):
+    try:
+        team = Team.objects.get(id=team_id)
+    except Team.DoesNotExist:
+        return Response({"error": "Team not found"}, status=status.HTTP_404_NOT_FOUND)
+
+    membership = get_team_membership(request, team)
+    if not membership or membership.role != "owner":
+        return Response({"error": "Only owners can view audit logs"}, status=status.HTTP_403_FORBIDDEN)
+
+    limit = int(request.query_params.get("limit", 100))
+    logs = TeamAuditLogSerializer(team.audit_logs.all()[:limit], many=True).data
+    return Response(logs)
+
+
+@api_view(["POST"])
+@permission_classes([IsAuthenticated])
+def share_to_team(request, team_id):
+    try:
+        team = Team.objects.get(id=team_id)
+    except Team.DoesNotExist:
+        return Response({"error": "Team not found"}, status=status.HTTP_404_NOT_FOUND)
+
+    membership = get_team_membership(request, team)
+    if not membership or membership.role not in ["owner", "editor"]:
+        return Response({"error": "Only editors can share to team"}, status=status.HTTP_403_FORBIDDEN)
+
+    page_id = request.data.get("page_id")
+    from knowledge.models import WorkspacePage
+
+    try:
+        original_page = WorkspacePage.objects.get(id=page_id)
+    except WorkspacePage.DoesNotExist:
+        return Response({"error": "Page not found"}, status=status.HTTP_404_NOT_FOUND)
+
+    team_page = TeamPage.objects.create(
+        team=team,
+        original_page=original_page,
+        title=original_page.title,
+        slug=original_page.slug,
+        icon=original_page.icon,
+        cover=original_page.cover,
+        content={"copied_from": str(original_page.id)},
+        page_type="standard",
+        publish_state="draft",
+        created_by=request.user,
+    )
+
+    TeamActivity.objects.create(
+        team=team,
+        user=request.user,
+        action="page_shared",
+        target_type="page",
+        target_id=team_page.id,
+        metadata={"original_page_id": str(original_page.id)},
+    )
+
+    return Response(TeamPageSerializer(team_page).data, status=status.HTTP_201_CREATED)
+
+
+@api_view(["POST"])
+@permission_classes([IsAuthenticated])
+def fork_to_personal(request, team_id):
+    try:
+        team = Team.objects.get(id=team_id)
+    except Team.DoesNotExist:
+        return Response({"error": "Team not found"}, status=status.HTTP_404_NOT_FOUND)
+
+    membership = get_team_membership(request, team)
+    if not membership:
+        return Response({"error": "Access denied"}, status=status.HTTP_403_FORBIDDEN)
+
+    page_id = request.data.get("page_id")
+    from knowledge.models import WorkspacePage
+
+    try:
+        team_page = team.pages.get(id=page_id)
+    except TeamPage.DoesNotExist:
+        return Response({"error": "Team page not found"}, status=status.HTTP_404_NOT_FOUND)
+
+    personal_page = WorkspacePage.objects.create(
+        slug=f"{team.slug}-{team_page.slug}",
+        title=team_page.title,
+        icon=team_page.icon,
+        cover=team_page.cover,
+        description=team_page.description,
+        tags=team_page.tags,
+        last_edited_by=request.user.username,
+    )
+
+    TeamActivity.objects.create(
+        team=team,
+        user=request.user,
+        action="page_forked",
+        target_type="page",
+        target_id=team_page.id,
+        metadata={"personal_page_id": str(personal_page.id)},
+    )
+
+    return Response({
+        "id": str(personal_page.id),
+        "slug": personal_page.slug,
+        "title": personal_page.title,
+        "created_at": personal_page.created_at.isoformat(),
+    }, status=status.HTTP_201_CREATED)
+
+
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def workspace_switcher(request):
+    if not request.user.is_authenticated:
+        return Response({"personal": None, "teams": []})
+
+    memberships = TeamMembership.objects.filter(
+        user=request.user, is_active=True
+    ).select_related("team")
+
+    teams_data = []
+    for m in memberships:
+        team_data = TeamSerializer(m.team, context={"request": request}).data
+        team_data["my_role"] = m.role
+        teams_data.append(team_data)
+
+    return Response({
+        "personal": {"id": str(request.user.id), "name": "Personal"},
+        "teams": teams_data,
+    })
+
+
+@api_view(["POST"])
+@permission_classes([IsAuthenticated])
+def transfer_ownership(request, team_id):
+    try:
+        team = Team.objects.get(id=team_id)
+    except Team.DoesNotExist:
+        return Response({"error": "Team not found"}, status=status.HTTP_404_NOT_FOUND)
+
+    current_owner = TeamMembership.objects.filter(team=team, user=request.user, role="owner").first()
+    if not current_owner:
+        return Response({"error": "Only owners can transfer ownership"}, status=status.HTTP_403_FORBIDDEN)
+
+    new_owner_id = request.data.get("new_owner_id")
+    try:
+        new_owner = TeamMembership.objects.get(team=team, user_id=new_owner_id)
+    except TeamMembership.DoesNotExist:
+        return Response({"error": "User is not a member"}, status=status.HTTP_400_BAD_REQUEST)
+
+    current_owner.role = "editor"
+    current_owner.save()
+
+    new_owner.role = "owner"
+    new_owner.save()
+
+    TeamAuditLog.objects.create(
+        team=team,
+        user=request.user,
+        action="ownership_transferred",
+        target_type="user",
+        target_id=new_owner_id,
+    )
+
+    return Response({"transferred": True})
+
+
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def search_team(request, team_id):
+    try:
+        team = Team.objects.get(id=team_id)
+    except Team.DoesNotExist:
+        return Response({"error": "Team not found"}, status=status.HTTP_404_NOT_FOUND)
+
+    membership = get_team_membership(request, team)
+    if not membership:
+        return Response({"error": "Access denied"}, status=status.HTTP_403_FORBIDDEN)
+
+    query = request.query_params.get("q", "")
+    if not query:
+        return Response({"results": []})
+
+    pages = team.pages.filter(
+        Q(title__icontains=query) | Q(description__icontains=query)
+    )[:20]
+
+    return Response({
+        "pages": TeamPageSerializer(pages, many=True).data,
+    })
+
+
+@api_view(["POST"])
+@permission_classes([IsAuthenticated])
+def team_ai_chat(request, team_id):
+    """Chat with team AI using team knowledge context."""
+    try:
+        team = Team.objects.get(id=team_id)
+    except Team.DoesNotExist:
+        return Response({"error": "Team not found"}, status=status.HTTP_404_NOT_FOUND)
+
+    membership = get_team_membership(request, team)
+    if not membership:
+        return Response({"error": "Access denied"}, status=status.HTTP_403_FORBIDDEN)
+
+    question = request.data.get("question", "").strip()
+    if not question:
+        return Response({"error": "question is required"}, status=status.HTTP_400_BAD_REQUEST)
+
+    from .ai_integration import team_chat_processor
+    from ingest.ai_client import MemosAIClient
+
+    ai_client = MemosAIClient()
+    result = team_chat_processor(team, request.user, question, ai_client)
+
+    return Response(result)

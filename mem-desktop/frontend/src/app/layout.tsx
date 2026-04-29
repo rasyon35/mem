@@ -2,6 +2,8 @@ import type { Metadata } from 'next';
 import './globals.css';
 import { WikiProvider } from '@/context/WikiContext';
 import { ThemeProvider } from '@/context/ThemeContext';
+import { WorkspaceProvider } from '@/context/WorkspaceContext';
+import { TeamProvider } from '@/context/TeamContext';
 
 export const metadata: Metadata = {
   title: 'Mem Desktop - Local-First Research Workspace',
@@ -19,7 +21,11 @@ export default function RootLayout({
       <body>
         <ThemeProvider>
           <WikiProvider>
-            {children}
+            <WorkspaceProvider>
+              <TeamProvider>
+                {children}
+              </TeamProvider>
+            </WorkspaceProvider>
           </WikiProvider>
         </ThemeProvider>
       </body>

@@ -15,14 +15,14 @@ urlpatterns = [
     path("critical", views.manage_critical_pages, name="critical"),
     path("contradictions", views.list_contradictions, name="contradictions"),
     
-    # --- Phase 4: Team Collaboration ---
-    path("team", views.manage_team, name="team"),
-    path("locks", views.manage_locks, name="locks"),
-    path("sync_status", views.sync_status, name="sync_status"),
-    path("conflicts", views.get_git_conflicts, name="conflicts"),
-    path("resolve_conflict", views.resolve_conflict, name="resolve_conflict"),
-    path("track_activity", views.track_activity, name="track_activity"),
-    path("presence", views.get_presence, name="presence"),
+    # --- Phase 4: Team Collaboration (moved to teams app) ---
+    # path("team", views.manage_team, name="team"),
+    # path("locks", views.manage_locks, name="locks"),
+    # path("sync_status", views.sync_status, name="sync_status"),
+    # path("conflicts", views.get_git_conflicts, name="conflicts"),
+    # path("resolve_conflict", views.resolve_conflict, name="resolve_conflict"),
+    # path("track_activity", views.track_activity, name="track_activity"),
+    # path("presence", views.get_presence, name="presence"),
     
     # The Git Hub (Built-in Git Server)
     re_path(r"^git/(?P<repo_name>[^/]+)/", git_server.git_hub_view, name="git-hub"),
@@ -57,4 +57,10 @@ urlpatterns = [
     path("remediation/update", views.remediation_update, name="remediation-update"),
     path("query_artifacts", views.query_artifacts, name="query-artifacts"),
     path("query_artifacts/undo", views.undo_query_artifact, name="query-artifacts-undo"),
+
+    # Graph Chatbot Context
+    path("node_context", views.node_context, name="node-context"),
+    path("related_nodes", views.related_nodes, name="related-nodes"),
+    path("path_between", views.path_between, name="path-between"),
+    path("chat_with_context", views.chat_with_context, name="chat-with-context"),
 ]
