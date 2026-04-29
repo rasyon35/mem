@@ -75,8 +75,12 @@ export default function WaitlistForm() {
           </div>
         )}
 
-        <h2 className="text-gradient">Secure Your Spot</h2>
-        <p>Join the waitlist for the next generation of knowledge management.</p>
+        <h2 className="text-gradient">Be first to install MemOS</h2>
+        <p>
+          We're onboarding a small pilot of students, researchers, and teams
+          before the public launch. Drop your email and we'll send you the
+          desktop build the moment it's ready.
+        </p>
 
         {!submittedSuccess && (
           <form onSubmit={handleSubmit} className={styles.form}>
@@ -94,7 +98,7 @@ export default function WaitlistForm() {
               />
               <input
                 type="text"
-                placeholder="Your role (optional, e.g. Engineer)"
+                placeholder="You are… (optional — student, researcher, founder)"
                 value={role}
                 onChange={(e) => setRole(e.target.value)}
                 className={styles.input}
@@ -132,14 +136,16 @@ export default function WaitlistForm() {
               {formatCount(result.totalSignups)} total signups
             </div>
             <p className={styles.successFinePrint}>
-              We'll email <strong>{result.email}</strong> the moment early access
-              opens. Tell a friend — every referral moves the launch closer.
+              We'll email <strong>{result.email}</strong> the moment your
+              desktop build is ready. Forward this to a friend — pilot seats are
+              limited.
             </p>
           </div>
         )}
 
         <p className={styles.privacyNote}>
-          We'll only email you about MemOS launch updates. No spam, ever.
+          One email when MemOS Desktop launches. No newsletter, no spam, no
+          tracking pixels.
         </p>
       </div>
     </section>

@@ -4,18 +4,37 @@ export default function Hero() {
   return (
     <section className={styles.hero}>
       <div className={`${styles.badge} animate-fade-in`}>
-        <span>✨ AI-Powered & Git-Secured</span>
+        <span>✨ A local-first desktop app · Private by default</span>
       </div>
       <h1 className={`${styles.title} animate-fade-in`}>
-        The <span className="text-gradient">Living Wiki</span> for Modern Teams
+        Your private wiki, <span className="text-gradient">written by your sources.</span>
       </h1>
       <p className={`${styles.subtitle} animate-fade-in`}>
-        MemOS turns all company information into a knowledge system that evolves safely
-        through Git-style version control and human-reviewed AI updates.
+        MemOS Desktop turns your PDFs, docs, web pages, and notes into a living
+        knowledge wiki — indexed locally, refined by AI, and updated only when
+        you approve.
       </p>
       <div className={`${styles.actions} animate-fade-in`}>
-        <button className="btn-primary">Get Early Access</button>
-        <button className="btn-secondary">Watch Demo</button>
+        <button
+          className="btn-primary"
+          onClick={() =>
+            document
+              .getElementById("waitlist")
+              ?.scrollIntoView({ behavior: "smooth" })
+          }
+        >
+          Get Early Access
+        </button>
+        <button
+          className="btn-secondary"
+          onClick={() =>
+            document
+              .getElementById("features")
+              ?.scrollIntoView({ behavior: "smooth" })
+          }
+        >
+          How it works
+        </button>
       </div>
 
       {/* Decorative Visual */}
@@ -23,7 +42,7 @@ export default function Hero() {
         <div className={`${styles.visual} glass`}>
           <div className={styles.visualHeader}>
             <div className={styles.dots}><div /><div /><div /></div>
-            <span>memos.wiki / core-knowledge</span>
+            <span>memos · local workspace / wiki</span>
           </div>
           <div className={styles.visualContent}>
             <div className={styles.codeLine} style={{ width: '80%' }} />

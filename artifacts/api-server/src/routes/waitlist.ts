@@ -1,5 +1,5 @@
 import { Router, type IRouter } from "express";
-import { sql } from "drizzle-orm";
+import { eq, count, max } from "drizzle-orm";
 import { db, waitlistSignups } from "@workspace/db";
 import { JoinWaitlistBody } from "@workspace/api-zod";
 import { logger } from "../lib/logger";
@@ -44,7 +44,7 @@ router.post("/waitlist", async (req, res) => {
       const existing = await db
         .select()
         .from(waitlistSignups)
-        .where(sql`${waitlistSignups.email} = ${email}`)
+        .where(eq(waitlistSignups.email, email))
         .limit(1);
       row = existing[0];
       alreadySignedUp = true;
@@ -57,10 +57,8 @@ router.post("/waitlist", async (req, res) => {
         .json(badRequest("server_error", "Could not save your signup. Please try again."));
     }
 
-    const totalRows = await db
-      .select({ count: sql<number>`count(*)::int` })
-      .from(waitlistSignups);
-    const totalSignups = totalRows[0]?.count ?? 0;
+    const totalRows = await db.select({ value: count() }).from(waitlistSignups);
+    const totalSignups = Number(totalRows[0]?.value ?? 0);
 
     return res.json({
       id: String(row.id),
@@ -82,12 +80,17 @@ router.get("/waitlist/stats", async (_req, res) => {
   try {
     const rows = await db
       .select({
-        count: sql<number>`count(*)::int`,
-        last: sql<Date | null>`max(${waitlistSignups.createdAt})`,
+        value: count(),
+        last: max(waitlistSignups.createdAt),
       })
       .from(waitlistSignups);
-    const totalSignups = rows[0]?.count ?? 0;
-    const lastSignupAt = rows[0]?.last ? rows[0].last.toISOString() : "";
+    const totalSignups = Number(rows[0]?.value ?? 0);
+    const lastRaw = rows[0]?.last;
+    let lastSignupAt = "";
+    if (lastRaw) {
+      lastSignupAt = lastRaw instanceof Date ? lastRaw.toISOString() : new Date(lastRaw).toISOString();
+    }
+    res.set("Cache-Control", "no-store");
     return res.json({ totalSignups, lastSignupAt });
   } catch (err) {
     logger.error({ err }, "waitlist stats failed");

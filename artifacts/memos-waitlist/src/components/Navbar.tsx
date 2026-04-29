@@ -9,8 +9,17 @@ export default function Navbar() {
         </div>
         <div className={styles.links}>
           <a href="#features">Features</a>
-          <a href="#about">About</a>
-          <button className="btn-primary">Join Waitlist</button>
+          <a href="#waitlist">Pilot</a>
+          <button
+            className="btn-primary"
+            onClick={() =>
+              document
+                .getElementById("waitlist")
+                ?.scrollIntoView({ behavior: "smooth" })
+            }
+          >
+            Join Waitlist
+          </button>
         </div>
       </div>
     </nav>

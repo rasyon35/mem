@@ -6,23 +6,23 @@ export default function Footer() {
       <div className={styles.container}>
         <div className={styles.brand}>
           <span className="text-gradient">MemOS</span>
-          <p>The safely evolving knowledge system.</p>
+          <p>Your private knowledge, indexed locally.</p>
         </div>
         <div className={styles.links}>
           <div>
             <h4>Product</h4>
-            <a href="#">Roadmap</a>
-            <a href="#">Security</a>
+            <a href="#features">Features</a>
+            <a href="#waitlist">Pilot Cohort</a>
           </div>
           <div>
             <h4>Company</h4>
-            <a href="#">Blog</a>
             <a href="#">Privacy</a>
+            <a href="#">Contact</a>
           </div>
         </div>
       </div>
       <div className={styles.bottom}>
-        <p>© 2026 MemOS. All rights reserved.</p>
+        <p>© 2026 MemOS Desktop. Local-first. Built for thinkers.</p>
       </div>
     </footer>
   );
