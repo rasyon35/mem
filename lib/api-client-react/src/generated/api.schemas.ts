@@ -8,3 +8,53 @@
 export interface HealthStatus {
   status: string;
 }
+
+export interface ErrorResponse {
+  error: string;
+  message: string;
+}
+
+export interface WaitlistJoinRequest {
+  /**
+   * The signup email address.
+   * @maxLength 320
+   */
+  email: string;
+  /**
+   * Optional self-described role (e.g. Engineer, Founder).
+   * @maxLength 80
+   */
+  role?: string;
+  /**
+   * Optional company name.
+   * @maxLength 120
+   */
+  company?: string;
+  /**
+   * Where the visitor heard about MemOS (free text).
+   * @maxLength 200
+   */
+  referrer?: string;
+}
+
+export interface WaitlistJoinResponse {
+  /** The signup id. */
+  id: string;
+  /** The signup email. */
+  email: string;
+  /** The signup's 1-based position on the waitlist. */
+  position: number;
+  /** Total waitlist size after this signup. */
+  totalSignups: number;
+  /** True if the email was already on the waitlist. */
+  alreadySignedUp: boolean;
+  /** When the signup was created (or first created if it already existed) in ISO-8601. */
+  createdAt: string;
+}
+
+export interface WaitlistStats {
+  /** Total number of waitlist signups. */
+  totalSignups: number;
+  /** Timestamp of the most recent signup in ISO-8601, or empty string if none. */
+  lastSignupAt: string;
+}

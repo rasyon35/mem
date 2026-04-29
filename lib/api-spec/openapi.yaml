@@ -10,6 +10,8 @@ servers:
 tags:
   - name: health
     description: Health operations
+  - name: waitlist
+    description: MemOS waitlist signup operations
 paths:
   /healthz:
     get:
@@ -24,6 +26,44 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
+  /waitlist:
+    post:
+      operationId: joinWaitlist
+      tags: [waitlist]
+      summary: Join the MemOS waitlist
+      description: Add an email to the waitlist. Idempotent — the same email can be submitted again and will return the existing signup with alreadySignedUp set to true.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/WaitlistJoinRequest"
+      responses:
+        "200":
+          description: Signup created or already existed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WaitlistJoinResponse"
+        "400":
+          description: Invalid email
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /waitlist/stats:
+    get:
+      operationId: getWaitlistStats
+      tags: [waitlist]
+      summary: Public waitlist stats
+      description: Returns the total signup count and the most recent signup timestamp. Used as social proof on the landing page.
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WaitlistStats"
 components:
   schemas:
     HealthStatus:
@@ -33,4 +73,74 @@ components:
           type: string
       required:
         - status
-
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          type: string
+        message:
+          type: string
+      required:
+        - error
+        - message
+    WaitlistJoinRequest:
+      type: object
+      properties:
+        email:
+          type: string
+          description: The signup email address.
+          maxLength: 320
+        role:
+          type: string
+          description: Optional self-described role (e.g. Engineer, Founder).
+          maxLength: 80
+        company:
+          type: string
+          description: Optional company name.
+          maxLength: 120
+        referrer:
+          type: string
+          description: Where the visitor heard about MemOS (free text).
+          maxLength: 200
+      required:
+        - email
+    WaitlistJoinResponse:
+      type: object
+      properties:
+        id:
+          type: string
+          description: The signup id.
+        email:
+          type: string
+          description: The signup email.
+        position:
+          type: integer
+          description: The signup's 1-based position on the waitlist.
+        totalSignups:
+          type: integer
+          description: Total waitlist size after this signup.
+        alreadySignedUp:
+          type: boolean
+          description: True if the email was already on the waitlist.
+        createdAt:
+          type: string
+          description: When the signup was created (or first created if it already existed) in ISO-8601.
+      required:
+        - id
+        - email
+        - position
+        - totalSignups
+        - alreadySignedUp
+        - createdAt
+    WaitlistStats:
+      type: object
+      properties:
+        totalSignups:
+          type: integer
+          description: Total number of waitlist signups.
+        lastSignupAt:
+          type: string
+          description: Timestamp of the most recent signup in ISO-8601, or empty string if none.
+      required:
+        - totalSignups
+        - lastSignupAt

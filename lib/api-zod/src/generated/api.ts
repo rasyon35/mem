@@ -14,3 +14,67 @@ import * as zod from "zod";
 export const HealthCheckResponse = zod.object({
   status: zod.string(),
 });
+
+/**
+ * Add an email to the waitlist. Idempotent — the same email can be submitted again and will return the existing signup with alreadySignedUp set to true.
+ * @summary Join the MemOS waitlist
+ */
+export const joinWaitlistBodyEmailMax = 320;
+
+export const joinWaitlistBodyRoleMax = 80;
+
+export const joinWaitlistBodyCompanyMax = 120;
+
+export const joinWaitlistBodyReferrerMax = 200;
+
+export const JoinWaitlistBody = zod.object({
+  email: zod
+    .string()
+    .max(joinWaitlistBodyEmailMax)
+    .describe("The signup email address."),
+  role: zod
+    .string()
+    .max(joinWaitlistBodyRoleMax)
+    .optional()
+    .describe("Optional self-described role (e.g. Engineer, Founder)."),
+  company: zod
+    .string()
+    .max(joinWaitlistBodyCompanyMax)
+    .optional()
+    .describe("Optional company name."),
+  referrer: zod
+    .string()
+    .max(joinWaitlistBodyReferrerMax)
+    .optional()
+    .describe("Where the visitor heard about MemOS (free text)."),
+});
+
+export const JoinWaitlistResponse = zod.object({
+  id: zod.string().describe("The signup id."),
+  email: zod.string().describe("The signup email."),
+  position: zod
+    .number()
+    .describe("The signup's 1-based position on the waitlist."),
+  totalSignups: zod.number().describe("Total waitlist size after this signup."),
+  alreadySignedUp: zod
+    .boolean()
+    .describe("True if the email was already on the waitlist."),
+  createdAt: zod
+    .string()
+    .describe(
+      "When the signup was created (or first created if it already existed) in ISO-8601.",
+    ),
+});
+
+/**
+ * Returns the total signup count and the most recent signup timestamp. Used as social proof on the landing page.
+ * @summary Public waitlist stats
+ */
+export const GetWaitlistStatsResponse = zod.object({
+  totalSignups: zod.number().describe("Total number of waitlist signups."),
+  lastSignupAt: zod
+    .string()
+    .describe(
+      "Timestamp of the most recent signup in ISO-8601, or empty string if none.",
+    ),
+});

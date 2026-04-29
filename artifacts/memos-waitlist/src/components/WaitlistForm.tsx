@@ -1,49 +1,146 @@
 import { useState } from "react";
+import {
+  useGetWaitlistStats,
+  useJoinWaitlist,
+  getGetWaitlistStatsQueryKey,
+  type WaitlistJoinResponse,
+} from "@workspace/api-client-react";
+import { useQueryClient } from "@tanstack/react-query";
 import styles from "./WaitlistForm.module.css";
+
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+function formatCount(n: number): string {
+  return n.toLocaleString("en-US");
+}
 
 export default function WaitlistForm() {
   const [email, setEmail] = useState("");
-  const [status, setStatus] = useState<"idle" | "loading" | "success" | "error">("idle");
+  const [role, setRole] = useState("");
+  const [validationError, setValidationError] = useState<string | null>(null);
+  const [result, setResult] = useState<WaitlistJoinResponse | null>(null);
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const queryClient = useQueryClient();
+  const statsQuery = useGetWaitlistStats({
+    query: { refetchInterval: 15_000 },
+  });
+
+  const joinMutation = useJoinWaitlist({
+    mutation: {
+      onSuccess: (data) => {
+        setResult(data);
+        setEmail("");
+        setRole("");
+        queryClient.invalidateQueries({ queryKey: getGetWaitlistStatsQueryKey() });
+      },
+    },
+  });
+
+  const total = statsQuery.data?.totalSignups ?? 0;
+  const isPending = joinMutation.isPending;
+  const submittedSuccess = result !== null;
+
+  const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    setStatus("loading");
-
-    // Simulate API call
-    setTimeout(() => {
-      setStatus("success");
-      setEmail("");
-    }, 1500);
+    setValidationError(null);
+    const trimmed = email.trim();
+    if (!EMAIL_RE.test(trimmed)) {
+      setValidationError("Please enter a valid email address.");
+      return;
+    }
+    joinMutation.mutate({
+      data: {
+        email: trimmed,
+        role: role.trim() || undefined,
+      },
+    });
   };
+
+  const serverErrorMessage = joinMutation.isError
+    ? joinMutation.error?.data?.message ??
+      joinMutation.error?.message ??
+      "Something went wrong. Please try again."
+    : null;
 
   return (
     <section id="waitlist" className={styles.section}>
       <div className={`${styles.container} glass`}>
+        {total > 0 && (
+          <div className={styles.countBadge} aria-live="polite">
+            <span className={styles.pulseDot} />
+            <span>
+              <strong>{formatCount(total)}</strong>{" "}
+              {total === 1 ? "person has" : "people have"} joined
+            </span>
+          </div>
+        )}
+
         <h2 className="text-gradient">Secure Your Spot</h2>
         <p>Join the waitlist for the next generation of knowledge management.</p>
 
-        <form onSubmit={handleSubmit} className={styles.form}>
-          <input
-            type="email"
-            placeholder="Enter your work email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            required
-            className={styles.input}
-            disabled={status === "loading" || status === "success"}
-          />
-          <button
-            type="submit"
-            className="btn-primary"
-            disabled={status === "loading" || status === "success"}
-          >
-            {status === "loading" ? "Joining..." : status === "success" ? "You're In!" : "Join Waitlist"}
-          </button>
-        </form>
-
-        {status === "success" && (
-          <p className={styles.successMsg}>✨ Welcome to the future of wikis. We'll be in touch soon.</p>
+        {!submittedSuccess && (
+          <form onSubmit={handleSubmit} className={styles.form}>
+            <div className={styles.fieldStack}>
+              <input
+                type="email"
+                placeholder="Enter your work email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                required
+                className={styles.input}
+                disabled={isPending}
+                autoComplete="email"
+                inputMode="email"
+              />
+              <input
+                type="text"
+                placeholder="Your role (optional, e.g. Engineer)"
+                value={role}
+                onChange={(e) => setRole(e.target.value)}
+                className={styles.input}
+                disabled={isPending}
+                maxLength={80}
+                autoComplete="organization-title"
+              />
+            </div>
+            <button type="submit" className="btn-primary" disabled={isPending}>
+              {isPending ? "Joining..." : "Join Waitlist"}
+            </button>
+          </form>
         )}
+
+        {(validationError || serverErrorMessage) && !submittedSuccess && (
+          <p className={styles.errorMsg} role="alert">
+            {validationError ?? serverErrorMessage}
+          </p>
+        )}
+
+        {submittedSuccess && result && (
+          <div className={styles.successCard} aria-live="polite">
+            <div className={styles.successHeader}>
+              <span className={styles.checkmark} aria-hidden="true">
+                ✓
+              </span>
+              <span>
+                {result.alreadySignedUp
+                  ? "You're already on the list."
+                  : "Welcome to MemOS."}
+              </span>
+            </div>
+            <div className={styles.positionLine}>
+              You're <strong>#{formatCount(result.position)}</strong> in line ·{" "}
+              {formatCount(result.totalSignups)} total signups
+            </div>
+            <p className={styles.successFinePrint}>
+              We'll email <strong>{result.email}</strong> the moment early access
+              opens. Tell a friend — every referral moves the launch closer.
+            </p>
+          </div>
+        )}
+
+        <p className={styles.privacyNote}>
+          We'll only email you about MemOS launch updates. No spam, ever.
+        </p>
       </div>
     </section>
   );
