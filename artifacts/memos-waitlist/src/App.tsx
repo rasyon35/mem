@@ -1,6 +1,7 @@
 import Navbar from "@/components/Navbar";
 import Hero from "@/components/Hero";
 import Features from "@/components/Features";
+import Teams from "@/components/Teams";
 import WaitlistForm from "@/components/WaitlistForm";
 import Footer from "@/components/Footer";
 
@@ -12,6 +13,7 @@ function App() {
         <Navbar />
         <Hero />
         <Features />
+        <Teams />
         <WaitlistForm />
         <Footer />
       </main>

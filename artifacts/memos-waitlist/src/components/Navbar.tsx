@@ -9,6 +9,7 @@ export default function Navbar() {
         </div>
         <div className={styles.links}>
           <a href="#features">Features</a>
+          <a href="#teams">Teams</a>
           <a href="#waitlist">Pilot</a>
           <button
             className="btn-primary"

@@ -12,6 +12,7 @@ export default function Footer() {
           <div>
             <h4>Product</h4>
             <a href="#features">Features</a>
+            <a href="#teams">Teams</a>
             <a href="#waitlist">Pilot Cohort</a>
           </div>
           <div>
